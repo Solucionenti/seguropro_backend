@@ -1,0 +1,3 @@
+[run]
+# Bun will use tsconfig paths for resolution automatically
+# No extra config needed — just ensure tsconfig.json has "paths"

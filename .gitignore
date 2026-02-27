@@ -1,0 +1,36 @@
+# dependencies
+node_modules
+
+# output
+out
+dist
+*.tgz
+
+# prisma generated client
+generated/
+
+# code coverage
+coverage
+*.lcov
+
+# logs
+logs
+*.log
+
+# dotenv environment variable files
+.env
+.env.development.local
+.env.test.local
+.env.production.local
+.env.local
+
+# caches
+.cache
+*.tsbuildinfo
+
+# IDEs (keep .vscode for shared extensions/settings)
+.idea
+
+# OS
+.DS_Store
+Thumbs.db
