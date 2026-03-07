@@ -1,8 +1,8 @@
-import type { PrismaClient } from '../../../generated/prisma/client'
+import type { AppPrismaClient } from '@/config/database'
 import type { HealthRepository } from '../domain/repository'
 
 export class PrismaHealthRepository implements HealthRepository {
-  constructor(private readonly prisma: PrismaClient) {}
+  constructor(private readonly prisma: AppPrismaClient) {}
 
   async checkDatabaseConnection(): Promise<boolean> {
     try {

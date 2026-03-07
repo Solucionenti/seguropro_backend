@@ -6,9 +6,13 @@
   "scripts": {
     "dev": "bun run --watch src/index.ts",
     "start": "bun run src/index.ts",
+    "ts": "tsc --noEmit",
+    "build:bin": "bun build --compile --minify-whitespace --minify-syntax --target bun --outfile server_bin src/index.ts",
     "db:generate": "bunx prisma generate",
     "db:migrate": "bunx prisma migrate dev",
     "db:push": "bunx prisma migrate deploy",
+    "db:reset": "bunx prisma migrate reset",
+    "db:seed": "bunx prisma db seed",
     "db:studio": "bunx prisma studio",
     "lint": "bunx biome check .",
     "lint:fix": "bunx biome check --write .",
@@ -29,8 +33,10 @@
     "@prisma/client": "7.4.1",
     "dotenv": "17.3.1",
     "elysia": "1.4.26",
+    "jose": "6.2.0",
     "pg": "8.19.0",
     "prisma": "7.4.1",
-    "zod": "3.25.36"
+    "zod": "3.25.36",
+    "zod-to-json-schema": "3.25.1"
   }
 }

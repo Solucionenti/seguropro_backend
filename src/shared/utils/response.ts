@@ -19,9 +19,20 @@ function buildOkNoData(message: string): ApiResponse<never> {
 
 function buildPaginated<T>(
   data: T[],
-  pagination: PaginationInfo,
+  total: number,
+  page: number,
+  pageSize: number,
   message?: string,
 ): ApiResponse<T[]> {
+  const totalPages = Math.ceil(total / pageSize)
+  const pagination: PaginationInfo = {
+    total,
+    page,
+    pageSize,
+    totalPages,
+    hasNext: page < totalPages,
+    hasPrevious: page > 1,
+  }
   return {
     data,
     success: true,
@@ -38,19 +49,17 @@ function buildError(code: string, message: string): ApiResponse<never> {
   }
 }
 
-export const responsePlugin = new Elysia({ name: '@app/shared/response' })
-  .derive((_ctx) => ({
-    jsonOk<T>(data: T, message?: string, meta?: ApiMeta) {
-      return buildOk(data, message, meta)
-    },
-    jsonOkNoData(message: string) {
-      return buildOkNoData(message)
-    },
-    jsonPaginated<T>(data: T[], pagination: PaginationInfo, message?: string) {
-      return buildPaginated(data, pagination, message)
-    },
-    jsonError(code: string, message: string) {
-      return buildError(code, message)
-    },
-  }))
-  .as('global')
+export const responsePlugin = new Elysia({ name: '@app/shared/response' }).decorate({
+  jsonOk<T>(data: T, message?: string, meta?: ApiMeta) {
+    return buildOk(data, message, meta)
+  },
+  jsonOkNoData(message: string) {
+    return buildOkNoData(message)
+  },
+  jsonPaginated<T>(data: T[], total: number, page: number, pageSize: number, message?: string) {
+    return buildPaginated(data, total, page, pageSize, message)
+  },
+  jsonError(code: string, message: string) {
+    return buildError(code, message)
+  },
+})

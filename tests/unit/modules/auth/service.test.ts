@@ -1,0 +1,225 @@
+import { beforeEach, describe, expect, it, mock } from 'bun:test'
+import { ResourceStatus, UserRole } from '@gen/enums'
+import { AuthService } from '@/modules/auth/application/service'
+import type { AuthUser, AuthUserProvider } from '@/modules/auth/domain/auth-user-provider'
+import type { JwtService, JwtTokenPair } from '@/shared/domain/jwt-service'
+import type { PasswordHasher } from '@/shared/domain/password-hasher'
+import { UnauthorizedError } from '@/shared/domain/unauthorized-error'
+
+// --- Factories ---
+
+function createMockUser(overrides: Partial<AuthUser> = {}): AuthUser {
+  return {
+    id: 'user-1',
+    email: 'agent@test.com',
+    firstName: 'John',
+    lastName: 'Doe',
+    role: UserRole.AGENT,
+    companyId: 'company-1',
+    passwordHash: 'hashed-password',
+    status: ResourceStatus.ACTIVE,
+    ...overrides,
+  }
+}
+
+function createTokenPair(): JwtTokenPair {
+  return { accessToken: 'access-token', refreshToken: 'refresh-token' }
+}
+
+// --- Mocks ---
+
+function createMocks() {
+  const authUserProvider: AuthUserProvider = {
+    findByEmailAndCompany: mock(() => Promise.resolve(null)),
+    findMasterAdminByEmail: mock(() => Promise.resolve(null)),
+    findCompaniesByEmail: mock(() => Promise.resolve([])),
+    updateLastLogin: mock(() => Promise.resolve()),
+  }
+
+  const passwordHasher: PasswordHasher = {
+    hash: mock(() => Promise.resolve('hashed')),
+    verify: mock(() => Promise.resolve(true)),
+  }
+
+  const jwtService: JwtService = {
+    signAccessToken: mock(() => Promise.resolve('access-token')),
+    signRefreshToken: mock(() => Promise.resolve('refresh-token')),
+    signTokenPair: mock(() => Promise.resolve(createTokenPair())),
+    verifyAccessToken: mock(() => Promise.resolve(null)),
+    verifyRefreshToken: mock(() => Promise.resolve(null)),
+  }
+
+  return { authUserProvider, passwordHasher, jwtService }
+}
+
+// --- Tests ---
+
+describe('AuthService', () => {
+  let authService: AuthService
+  let mocks: ReturnType<typeof createMocks>
+
+  beforeEach(() => {
+    mocks = createMocks()
+    authService = new AuthService(mocks.authUserProvider, mocks.passwordHasher, mocks.jwtService)
+  })
+
+  describe('login', () => {
+    it('should login a tenant user with companyId', async () => {
+      const user = createMockUser()
+      ;(mocks.authUserProvider.findByEmailAndCompany as ReturnType<typeof mock>).mockResolvedValue(
+        user,
+      )
+
+      const result = await authService.login({
+        email: 'agent@test.com',
+        password: 'password123',
+        companyId: 'company-1',
+      })
+
+      expect(result.accessToken).toBe('access-token')
+      expect(result.refreshToken).toBe('refresh-token')
+      expect(result.user.id).toBe('user-1')
+      expect(result.user.email).toBe('agent@test.com')
+      expect(result.user.role).toBe(UserRole.AGENT)
+      expect(result.user.companyId).toBe('company-1')
+      expect(mocks.authUserProvider.findByEmailAndCompany).toHaveBeenCalledWith(
+        'agent@test.com',
+        'company-1',
+      )
+      expect(mocks.authUserProvider.updateLastLogin).toHaveBeenCalledTimes(1)
+    })
+
+    it('should login a MASTER_ADMIN without companyId', async () => {
+      const masterAdmin = createMockUser({
+        id: 'admin-1',
+        role: UserRole.MASTER_ADMIN,
+        companyId: null,
+      })
+      ;(mocks.authUserProvider.findMasterAdminByEmail as ReturnType<typeof mock>).mockResolvedValue(
+        masterAdmin,
+      )
+
+      const result = await authService.login({
+        email: 'admin@test.com',
+        password: 'password123',
+      })
+
+      expect(result.user.role).toBe(UserRole.MASTER_ADMIN)
+      expect(result.user.companyId).toBeNull()
+      expect(mocks.authUserProvider.findMasterAdminByEmail).toHaveBeenCalledWith('admin@test.com')
+      expect(mocks.authUserProvider.findByEmailAndCompany).not.toHaveBeenCalled()
+    })
+
+    it('should throw UnauthorizedError when user not found', async () => {
+      expect(
+        authService.login({
+          email: 'unknown@test.com',
+          password: 'password123',
+          companyId: 'company-1',
+        }),
+      ).rejects.toThrow(UnauthorizedError)
+    })
+
+    it('should throw UnauthorizedError when password is invalid', async () => {
+      const user = createMockUser()
+      ;(mocks.authUserProvider.findByEmailAndCompany as ReturnType<typeof mock>).mockResolvedValue(
+        user,
+      )
+      ;(mocks.passwordHasher.verify as ReturnType<typeof mock>).mockResolvedValue(false)
+
+      expect(
+        authService.login({
+          email: 'agent@test.com',
+          password: 'wrong-password',
+          companyId: 'company-1',
+        }),
+      ).rejects.toThrow(UnauthorizedError)
+    })
+
+    it('should throw UnauthorizedError when user status is SUSPENDED', async () => {
+      const user = createMockUser({ status: ResourceStatus.INACTIVE })
+      ;(mocks.authUserProvider.findByEmailAndCompany as ReturnType<typeof mock>).mockResolvedValue(
+        user,
+      )
+
+      expect(
+        authService.login({
+          email: 'agent@test.com',
+          password: 'password123',
+          companyId: 'company-1',
+        }),
+      ).rejects.toThrow(UnauthorizedError)
+    })
+
+    it('should throw UnauthorizedError when user is soft-deleted', async () => {
+      const user = createMockUser({ status: ResourceStatus.DELETED })
+      ;(mocks.authUserProvider.findByEmailAndCompany as ReturnType<typeof mock>).mockResolvedValue(
+        user,
+      )
+
+      expect(
+        authService.login({
+          email: 'agent@test.com',
+          password: 'password123',
+          companyId: 'company-1',
+        }),
+      ).rejects.toThrow(UnauthorizedError)
+    })
+
+    it('should sign JWT with correct payload', async () => {
+      const user = createMockUser({ id: 'u-42', role: UserRole.OWNER, companyId: 'c-99' })
+      ;(mocks.authUserProvider.findByEmailAndCompany as ReturnType<typeof mock>).mockResolvedValue(
+        user,
+      )
+
+      await authService.login({
+        email: 'agent@test.com',
+        password: 'password123',
+        companyId: 'c-99',
+      })
+
+      expect(mocks.jwtService.signTokenPair).toHaveBeenCalledWith({
+        sub: 'u-42',
+        role: UserRole.OWNER,
+        companyId: 'c-99',
+      })
+    })
+
+    it('should not update lastLoginAt when login fails', async () => {
+      await authService
+        .login({
+          email: 'unknown@test.com',
+          password: 'password123',
+          companyId: 'company-1',
+        })
+        .catch(() => {})
+
+      expect(mocks.authUserProvider.updateLastLogin).not.toHaveBeenCalled()
+    })
+  })
+
+  describe('identify', () => {
+    it('should return companies for a known email', async () => {
+      const companies = [
+        { companyId: 'c-1', nombreComercial: 'Seguros MX' },
+        { companyId: 'c-2', nombreComercial: 'Seguros AR' },
+      ]
+      ;(mocks.authUserProvider.findCompaniesByEmail as ReturnType<typeof mock>).mockResolvedValue(
+        companies,
+      )
+
+      const result = await authService.identify('agent@test.com')
+
+      expect(result.companies).toHaveLength(2)
+      expect(result.companies[0]?.companyId).toBe('c-1')
+      expect(result.companies[1]?.nombreComercial).toBe('Seguros AR')
+      expect(mocks.authUserProvider.findCompaniesByEmail).toHaveBeenCalledWith('agent@test.com')
+    })
+
+    it('should return empty array for unknown email', async () => {
+      const result = await authService.identify('unknown@test.com')
+
+      expect(result.companies).toHaveLength(0)
+    })
+  })
+})

@@ -1,0 +1,43 @@
+import { Elysia } from 'elysia'
+import { authServicePlugin } from '@/config/services'
+import { publicRouter } from '@/shared/routers/public-router'
+import { identifySchema, loginSchema } from './schemas'
+
+export const authController = new Elysia({
+  name: '@app/modules/auth',
+  prefix: '/auth',
+})
+  .use(publicRouter)
+  .use(authServicePlugin)
+  .post(
+    '/login',
+    async ({ body, authService, jsonOk }) => {
+      const result = await authService.login(body)
+      return jsonOk(result, 'Login successful')
+    },
+    {
+      body: loginSchema,
+      detail: {
+        tags: ['Auth'],
+        summary: 'Login',
+        description:
+          'Authenticate a user with email and password. Requires companyId for tenant-scoped users. Omit companyId for MASTER_ADMIN login.',
+      },
+    },
+  )
+  .post(
+    '/identify',
+    async ({ body, authService, jsonOk }) => {
+      const result = await authService.identify(body.email)
+      return jsonOk(result)
+    },
+    {
+      body: identifySchema,
+      detail: {
+        tags: ['Auth'],
+        summary: 'Identify user companies',
+        description:
+          'Given an email, returns the list of companies where this email is registered. Use this before login when a user may belong to multiple companies.',
+      },
+    },
+  )

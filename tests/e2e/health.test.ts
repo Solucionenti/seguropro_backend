@@ -4,7 +4,9 @@ import { app } from '@/app'
 describe('GET /api/v1/health', () => {
   it('should return a successful health response with standard shape', async () => {
     const response = await app.handle(new Request('http://localhost/api/v1/health'))
-    const body = await response.json()
+    const body = (await response.json()) as Record<string, unknown> & {
+      data: Record<string, unknown>
+    }
 
     expect(response.status).toBe(200)
     expect(body.success).toBe(true)

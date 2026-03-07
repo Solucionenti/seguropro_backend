@@ -1,22 +1,18 @@
 import { Elysia } from 'elysia'
-import { prisma } from '@/config/database'
-import { baseController } from '@/shared/base-controller'
-import { HealthService } from '../application/service'
-import { PrismaHealthRepository } from '../infrastructure/prisma-repo'
-
-const healthRepo = new PrismaHealthRepository(prisma)
-const healthService = new HealthService(healthRepo)
+import { healthServicePlugin } from '@/config/services'
+import { publicRouter } from '@/shared/routers/public-router'
 
 export const healthController = new Elysia({
   name: '@app/modules/health',
   prefix: '/health',
 })
-  .use(baseController)
+  .use(publicRouter)
+  .use(healthServicePlugin)
   .get(
     '/',
-    async (ctx) => {
+    async ({ healthService, jsonOk }) => {
       const status = await healthService.getStatus()
-      return ctx.jsonOk(status)
+      return jsonOk(status)
     },
     {
       detail: {
