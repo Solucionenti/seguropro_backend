@@ -25,6 +25,13 @@ enum ResourceStatus {
   DELETED
 }
 
+enum Periodicidad {
+  MENSUAL
+  TRIMESTRAL
+  SEMESTRAL
+  ANUAL
+}
+
 model Company {
   id               String       @id @default(uuid())
   razonSocial      String?
@@ -64,4 +71,22 @@ model User {
 
   @@unique([companyId, email], name: "company_email_unique")
   @@map("users")
+}
+
+model Plan {
+  id                     String       @id @default(uuid())
+  nombre                 String       @unique
+  descripcion            String?
+  precio                 Float
+  periodicidad           Periodicidad
+  limiteUsuarios         Int
+  limiteAlmacenamientoGB Float?
+  features               Json?
+  active                 Boolean      @default(true)
+
+  status    ResourceStatus @default(ACTIVE)
+  createdAt DateTime       @default(now())
+  updatedAt DateTime       @updatedAt
+
+  @@map("plans")
 }
