@@ -1,4 +1,3 @@
-import type { Mock } from 'bun:test'
 import { beforeEach, describe, expect, it, mock } from 'bun:test'
 import { Periodicidad, ResourceStatus } from '@gen/enums'
 import { PlanService } from '@/modules/plan/application/service'
@@ -6,10 +5,7 @@ import type { Plan } from '@/modules/plan/domain/entities'
 import type { PlanRepository } from '@/modules/plan/domain/repository'
 import { NotFoundError } from '@/shared/domain/not-found-error'
 import { ValidationError } from '@/shared/domain/validation-error'
-
-type Mocked<T> = {
-  [K in keyof T]: T[K] extends (...args: infer A) => infer R ? Mock<(...args: A) => R> : T[K]
-}
+import type { Mocked } from '../../../utils/mocked'
 
 // ── Factories ────────────────────────────────────────────
 

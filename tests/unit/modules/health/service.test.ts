@@ -1,9 +1,10 @@
 import { beforeEach, describe, expect, it, mock } from 'bun:test'
 import { HealthService } from '@/modules/health/application/service'
 import type { HealthRepository } from '@/modules/health/domain/repository'
+import type { Mocked } from '../../../utils/mocked'
 
 function createMocks() {
-  const healthRepo: HealthRepository = {
+  const healthRepo: Mocked<HealthRepository> = {
     checkDatabaseConnection: mock(() => Promise.resolve(true)),
   }
   return { healthRepo }
@@ -28,7 +29,7 @@ describe('HealthService', () => {
   })
 
   it('should return degraded status when database is disconnected', async () => {
-    ;(mocks.healthRepo.checkDatabaseConnection as ReturnType<typeof mock>).mockResolvedValue(false)
+    mocks.healthRepo.checkDatabaseConnection.mockResolvedValue(false)
 
     const status = await healthService.getStatus()
 

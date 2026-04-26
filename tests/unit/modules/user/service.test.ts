@@ -6,6 +6,7 @@ import type { UserRepository } from '@/modules/user/domain/repository'
 import { NotFoundError } from '@/shared/domain/not-found-error'
 import type { PasswordHasher } from '@/shared/domain/password-hasher'
 import { ValidationError } from '@/shared/domain/validation-error'
+import type { Mocked } from '../../../utils/mocked'
 
 // ── Factories ────────────────────────────────────────────
 
@@ -48,7 +49,7 @@ function createMockOwnerWithCompany(overrides: Partial<UserWithCompany> = {}): U
 // ── Mocks ────────────────────────────────────────────────
 
 function createMocks() {
-  const repo: UserRepository = {
+  const repo: Mocked<UserRepository> = {
     findById: mock(() => Promise.resolve(null)),
     findByCompanyId: mock(() => Promise.resolve({ data: [], total: 0 })),
     findByEmailAndCompany: mock(() => Promise.resolve(null)),
@@ -65,7 +66,7 @@ function createMocks() {
     softDelete: mock(() => Promise.resolve()),
   }
 
-  const passwordHasher: PasswordHasher = {
+  const passwordHasher: Mocked<PasswordHasher> = {
     hash: mock(() => Promise.resolve('hashed-password')),
     verify: mock(() => Promise.resolve(true)),
   }
@@ -89,10 +90,7 @@ describe('UserService', () => {
   describe('listAdmins', () => {
     it('should return paginated list of admins', async () => {
       const admins = [createMockUser(), createMockUser({ id: 'user-2', email: 'admin2@test.com' })]
-      ;(mocks.repo.findAllMasterAdmins as ReturnType<typeof mock>).mockResolvedValue({
-        data: admins,
-        total: 2,
-      })
+      mocks.repo.findAllMasterAdmins.mockResolvedValue({ data: admins, total: 2 })
 
       const result = await service.listAdmins(1, 20)
 
@@ -113,7 +111,7 @@ describe('UserService', () => {
       }
 
       const created = createMockUser({ ...input, email: input.email })
-      ;(mocks.repo.create as ReturnType<typeof mock>).mockResolvedValue(created)
+      mocks.repo.create.mockResolvedValue(created)
 
       const result = await service.createAdmin(input)
 
@@ -131,9 +129,7 @@ describe('UserService', () => {
     })
 
     it('should throw ValidationError when email already exists', async () => {
-      ;(mocks.repo.findMasterAdminByEmail as ReturnType<typeof mock>).mockResolvedValue(
-        createMockUser(),
-      )
+      mocks.repo.findMasterAdminByEmail.mockResolvedValue(createMockUser())
 
       expect(
         service.createAdmin({
@@ -150,7 +146,7 @@ describe('UserService', () => {
   describe('getAdmin', () => {
     it('should return admin when found with MASTER_ADMIN role', async () => {
       const admin = createMockUser()
-      ;(mocks.repo.findById as ReturnType<typeof mock>).mockResolvedValue(admin)
+      mocks.repo.findById.mockResolvedValue(admin)
 
       const result = await service.getAdmin('user-1')
 
@@ -159,9 +155,7 @@ describe('UserService', () => {
     })
 
     it('should throw NotFoundError when user is not MASTER_ADMIN', async () => {
-      ;(mocks.repo.findById as ReturnType<typeof mock>).mockResolvedValue(
-        createMockUser({ role: UserRole.OWNER }),
-      )
+      mocks.repo.findById.mockResolvedValue(createMockUser({ role: UserRole.OWNER }))
 
       expect(service.getAdmin('user-1')).rejects.toBeInstanceOf(NotFoundError)
     })
@@ -174,9 +168,9 @@ describe('UserService', () => {
   describe('updateAdmin', () => {
     it('should update admin fields', async () => {
       const admin = createMockUser()
-      ;(mocks.repo.findById as ReturnType<typeof mock>).mockResolvedValue(admin)
+      mocks.repo.findById.mockResolvedValue(admin)
       const updated = createMockUser({ firstName: 'Updated' })
-      ;(mocks.repo.update as ReturnType<typeof mock>).mockResolvedValue(updated)
+      mocks.repo.update.mockResolvedValue(updated)
 
       const result = await service.updateAdmin('user-1', { firstName: 'Updated' })
 
@@ -188,8 +182,8 @@ describe('UserService', () => {
   describe('deleteAdmin', () => {
     it('should soft-delete admin when more than one active admin exists', async () => {
       const admin = createMockUser()
-      ;(mocks.repo.findById as ReturnType<typeof mock>).mockResolvedValue(admin)
-      ;(mocks.repo.countActiveMasterAdmins as ReturnType<typeof mock>).mockResolvedValue(2)
+      mocks.repo.findById.mockResolvedValue(admin)
+      mocks.repo.countActiveMasterAdmins.mockResolvedValue(2)
 
       await service.deleteAdmin('user-1')
 
@@ -198,8 +192,8 @@ describe('UserService', () => {
 
     it('should throw ValidationError when trying to delete the last active admin', async () => {
       const admin = createMockUser()
-      ;(mocks.repo.findById as ReturnType<typeof mock>).mockResolvedValue(admin)
-      ;(mocks.repo.countActiveMasterAdmins as ReturnType<typeof mock>).mockResolvedValue(1)
+      mocks.repo.findById.mockResolvedValue(admin)
+      mocks.repo.countActiveMasterAdmins.mockResolvedValue(1)
 
       expect(service.deleteAdmin('user-1')).rejects.toBeInstanceOf(ValidationError)
     })
@@ -214,10 +208,7 @@ describe('UserService', () => {
   describe('listOwners', () => {
     it('should return paginated list of owners with company info', async () => {
       const owners = [createMockOwnerWithCompany()]
-      ;(mocks.repo.findAllOwners as ReturnType<typeof mock>).mockResolvedValue({
-        data: owners,
-        total: 1,
-      })
+      mocks.repo.findAllOwners.mockResolvedValue({ data: owners, total: 1 })
 
       const result = await service.listOwners(1, 10)
 
@@ -260,9 +251,7 @@ describe('UserService', () => {
     })
 
     it('should throw ValidationError when owner email already exists', async () => {
-      ;(mocks.repo.findOwnerByEmail as ReturnType<typeof mock>).mockResolvedValue(
-        createMockUser({ role: UserRole.OWNER }),
-      )
+      mocks.repo.findOwnerByEmail.mockResolvedValue(createMockUser({ role: UserRole.OWNER }))
 
       expect(
         service.createOwner({
@@ -284,7 +273,7 @@ describe('UserService', () => {
   describe('getOwner', () => {
     it('should return owner with company info', async () => {
       const owner = createMockOwnerWithCompany()
-      ;(mocks.repo.findOwnerWithCompany as ReturnType<typeof mock>).mockResolvedValue(owner)
+      mocks.repo.findOwnerWithCompany.mockResolvedValue(owner)
 
       const result = await service.getOwner('user-1')
 
@@ -300,9 +289,9 @@ describe('UserService', () => {
   describe('updateOwner', () => {
     it('should update owner fields', async () => {
       const owner = createMockUser({ role: UserRole.OWNER, companyId: 'company-1' })
-      ;(mocks.repo.findById as ReturnType<typeof mock>).mockResolvedValue(owner)
+      mocks.repo.findById.mockResolvedValue(owner)
       const updated = { ...owner, firstName: 'Updated' }
-      ;(mocks.repo.update as ReturnType<typeof mock>).mockResolvedValue(updated)
+      mocks.repo.update.mockResolvedValue(updated)
 
       const result = await service.updateOwner('user-1', { firstName: 'Updated' })
 
@@ -310,9 +299,7 @@ describe('UserService', () => {
     })
 
     it('should throw NotFoundError when user is not OWNER', async () => {
-      ;(mocks.repo.findById as ReturnType<typeof mock>).mockResolvedValue(
-        createMockUser({ role: UserRole.MASTER_ADMIN }),
-      )
+      mocks.repo.findById.mockResolvedValue(createMockUser({ role: UserRole.MASTER_ADMIN }))
 
       expect(service.updateOwner('user-1', { firstName: 'X' })).rejects.toBeInstanceOf(
         NotFoundError,
@@ -323,7 +310,7 @@ describe('UserService', () => {
   describe('deleteOwner', () => {
     it('should soft-delete owner', async () => {
       const owner = createMockUser({ role: UserRole.OWNER, companyId: 'company-1' })
-      ;(mocks.repo.findById as ReturnType<typeof mock>).mockResolvedValue(owner)
+      mocks.repo.findById.mockResolvedValue(owner)
 
       await service.deleteOwner('user-1')
 
@@ -331,9 +318,7 @@ describe('UserService', () => {
     })
 
     it('should throw NotFoundError when user is not OWNER', async () => {
-      ;(mocks.repo.findById as ReturnType<typeof mock>).mockResolvedValue(
-        createMockUser({ role: UserRole.AGENT }),
-      )
+      mocks.repo.findById.mockResolvedValue(createMockUser({ role: UserRole.AGENT }))
 
       expect(service.deleteOwner('user-1')).rejects.toBeInstanceOf(NotFoundError)
     })
@@ -344,7 +329,7 @@ describe('UserService', () => {
   describe('getProfile', () => {
     it('should return user profile', async () => {
       const user = createMockUser()
-      ;(mocks.repo.findById as ReturnType<typeof mock>).mockResolvedValue(user)
+      mocks.repo.findById.mockResolvedValue(user)
 
       const result = await service.getProfile('user-1')
 
@@ -359,9 +344,9 @@ describe('UserService', () => {
   describe('updateProfile', () => {
     it('should update profile fields', async () => {
       const user = createMockUser()
-      ;(mocks.repo.findById as ReturnType<typeof mock>).mockResolvedValue(user)
+      mocks.repo.findById.mockResolvedValue(user)
       const updated = createMockUser({ phone: '9999999999' })
-      ;(mocks.repo.update as ReturnType<typeof mock>).mockResolvedValue(updated)
+      mocks.repo.update.mockResolvedValue(updated)
 
       const result = await service.updateProfile('user-1', { phone: '9999999999' })
 

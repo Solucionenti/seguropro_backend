@@ -5,8 +5,9 @@ import type { AuthUser, AuthUserProvider } from '@/modules/auth/domain/auth-user
 import type { JwtService, JwtTokenPair } from '@/shared/domain/jwt-service'
 import type { PasswordHasher } from '@/shared/domain/password-hasher'
 import { UnauthorizedError } from '@/shared/domain/unauthorized-error'
+import type { Mocked } from '../../../utils/mocked'
 
-// --- Factories ---
+// ── Factories ────────────────────────────────────────────
 
 function createMockUser(overrides: Partial<AuthUser> = {}): AuthUser {
   return {
@@ -26,22 +27,22 @@ function createTokenPair(): JwtTokenPair {
   return { accessToken: 'access-token', refreshToken: 'refresh-token' }
 }
 
-// --- Mocks ---
+// ── Mocks ────────────────────────────────────────────────
 
 function createMocks() {
-  const authUserProvider: AuthUserProvider = {
+  const authUserProvider: Mocked<AuthUserProvider> = {
     findByEmailAndCompany: mock(() => Promise.resolve(null)),
     findMasterAdminByEmail: mock(() => Promise.resolve(null)),
     findCompaniesByEmail: mock(() => Promise.resolve([])),
     updateLastLogin: mock(() => Promise.resolve()),
   }
 
-  const passwordHasher: PasswordHasher = {
+  const passwordHasher: Mocked<PasswordHasher> = {
     hash: mock(() => Promise.resolve('hashed')),
     verify: mock(() => Promise.resolve(true)),
   }
 
-  const jwtService: JwtService = {
+  const jwtService: Mocked<JwtService> = {
     signAccessToken: mock(() => Promise.resolve('access-token')),
     signRefreshToken: mock(() => Promise.resolve('refresh-token')),
     signTokenPair: mock(() => Promise.resolve(createTokenPair())),
@@ -52,7 +53,7 @@ function createMocks() {
   return { authUserProvider, passwordHasher, jwtService }
 }
 
-// --- Tests ---
+// ── Tests ────────────────────────────────────────────────
 
 describe('AuthService', () => {
   let authService: AuthService
@@ -66,9 +67,7 @@ describe('AuthService', () => {
   describe('login', () => {
     it('should login a tenant user with companyId', async () => {
       const user = createMockUser()
-      ;(mocks.authUserProvider.findByEmailAndCompany as ReturnType<typeof mock>).mockResolvedValue(
-        user,
-      )
+      mocks.authUserProvider.findByEmailAndCompany.mockResolvedValue(user)
 
       const result = await authService.login({
         email: 'agent@test.com',
@@ -95,9 +94,7 @@ describe('AuthService', () => {
         role: UserRole.MASTER_ADMIN,
         companyId: null,
       })
-      ;(mocks.authUserProvider.findMasterAdminByEmail as ReturnType<typeof mock>).mockResolvedValue(
-        masterAdmin,
-      )
+      mocks.authUserProvider.findMasterAdminByEmail.mockResolvedValue(masterAdmin)
 
       const result = await authService.login({
         email: 'admin@test.com',
@@ -122,10 +119,8 @@ describe('AuthService', () => {
 
     it('should throw UnauthorizedError when password is invalid', async () => {
       const user = createMockUser()
-      ;(mocks.authUserProvider.findByEmailAndCompany as ReturnType<typeof mock>).mockResolvedValue(
-        user,
-      )
-      ;(mocks.passwordHasher.verify as ReturnType<typeof mock>).mockResolvedValue(false)
+      mocks.authUserProvider.findByEmailAndCompany.mockResolvedValue(user)
+      mocks.passwordHasher.verify.mockResolvedValue(false)
 
       expect(
         authService.login({
@@ -138,9 +133,7 @@ describe('AuthService', () => {
 
     it('should throw UnauthorizedError when user status is SUSPENDED', async () => {
       const user = createMockUser({ status: ResourceStatus.INACTIVE })
-      ;(mocks.authUserProvider.findByEmailAndCompany as ReturnType<typeof mock>).mockResolvedValue(
-        user,
-      )
+      mocks.authUserProvider.findByEmailAndCompany.mockResolvedValue(user)
 
       expect(
         authService.login({
@@ -153,9 +146,7 @@ describe('AuthService', () => {
 
     it('should throw UnauthorizedError when user is soft-deleted', async () => {
       const user = createMockUser({ status: ResourceStatus.DELETED })
-      ;(mocks.authUserProvider.findByEmailAndCompany as ReturnType<typeof mock>).mockResolvedValue(
-        user,
-      )
+      mocks.authUserProvider.findByEmailAndCompany.mockResolvedValue(user)
 
       expect(
         authService.login({
@@ -168,9 +159,7 @@ describe('AuthService', () => {
 
     it('should sign JWT with correct payload', async () => {
       const user = createMockUser({ id: 'u-42', role: UserRole.OWNER, companyId: 'c-99' })
-      ;(mocks.authUserProvider.findByEmailAndCompany as ReturnType<typeof mock>).mockResolvedValue(
-        user,
-      )
+      mocks.authUserProvider.findByEmailAndCompany.mockResolvedValue(user)
 
       await authService.login({
         email: 'agent@test.com',
@@ -204,9 +193,7 @@ describe('AuthService', () => {
         { companyId: 'c-1', nombreComercial: 'Seguros MX' },
         { companyId: 'c-2', nombreComercial: 'Seguros AR' },
       ]
-      ;(mocks.authUserProvider.findCompaniesByEmail as ReturnType<typeof mock>).mockResolvedValue(
-        companies,
-      )
+      mocks.authUserProvider.findCompaniesByEmail.mockResolvedValue(companies)
 
       const result = await authService.identify('agent@test.com')
 
