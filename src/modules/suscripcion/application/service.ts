@@ -1,0 +1,75 @@
+import { SuscripcionStatus } from '@gen/enums'
+import { NotFoundError } from '@/shared/domain/not-found-error'
+import { ValidationError } from '@/shared/domain/validation-error'
+import type { CompanyProvider } from '../domain/company-provider'
+import type {
+  CreateSuscripcionInput,
+  SuscripcionWithDetails,
+  UpdateSuscripcionInput,
+} from '../domain/entities'
+import type { PlanProvider } from '../domain/plan-provider'
+import type { SuscripcionFilters, SuscripcionRepository } from '../domain/repository'
+import type { ISuscripcionService } from '../domain/service'
+
+const ACTIVE_STATUSES: SuscripcionStatus[] = [SuscripcionStatus.TRIAL, SuscripcionStatus.ACTIVA]
+
+export class SuscripcionService implements ISuscripcionService {
+  constructor(
+    private readonly repo: SuscripcionRepository,
+    private readonly companyProvider: CompanyProvider,
+    private readonly planProvider: PlanProvider,
+  ) {}
+
+  async list(
+    page: number,
+    pageSize: number,
+    filters: SuscripcionFilters,
+  ): Promise<{ data: SuscripcionWithDetails[]; total: number }> {
+    return this.repo.findAll(page, pageSize, filters)
+  }
+
+  async create(input: CreateSuscripcionInput): Promise<SuscripcionWithDetails> {
+    const company = await this.companyProvider.findActiveById(input.companyId)
+    if (!company) {
+      throw new ValidationError(`Company with id "${input.companyId}" not found or inactive`)
+    }
+
+    const plan = await this.planProvider.findActiveById(input.planId)
+    if (!plan) {
+      throw new ValidationError(`Plan with id "${input.planId}" not found or inactive`)
+    }
+
+    const isActive = input.active ?? true
+    if (isActive && !ACTIVE_STATUSES.includes(input.suscripcionStatus)) {
+      throw new ValidationError('An active subscription must have status TRIAL or ACTIVA')
+    }
+
+    return this.repo.create({ ...input, active: isActive })
+  }
+
+  async getById(id: string): Promise<SuscripcionWithDetails> {
+    const suscripcion = await this.repo.findById(id)
+    if (!suscripcion) {
+      throw new NotFoundError('Suscripcion', id)
+    }
+    return suscripcion
+  }
+
+  async update(id: string, input: UpdateSuscripcionInput): Promise<SuscripcionWithDetails> {
+    const existing = await this.getById(id)
+
+    if (input.active === true) {
+      const resolvedStatus = input.suscripcionStatus ?? existing.suscripcionStatus
+      if (!ACTIVE_STATUSES.includes(resolvedStatus)) {
+        throw new ValidationError('An active subscription must have status TRIAL or ACTIVA')
+      }
+    }
+
+    return this.repo.update(id, input)
+  }
+
+  async deactivate(id: string): Promise<void> {
+    await this.getById(id)
+    return this.repo.deactivate(id)
+  }
+}

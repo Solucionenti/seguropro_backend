@@ -32,6 +32,21 @@ enum Periodicidad {
   ANUAL
 }
 
+enum SuscripcionStatus {
+  TRIAL
+  ACTIVA
+  CANCELADA
+  VENCIDA
+  SUSPENDIDA
+}
+
+enum OrdenStatus {
+  PENDIENTE
+  PAGADA
+  FALLIDA
+  CANCELADA
+}
+
 model Company {
   id               String       @id @default(uuid())
   razonSocial      String?
@@ -47,7 +62,8 @@ model Company {
   createdAt DateTime       @default(now())
   updatedAt DateTime       @updatedAt
 
-  users User[]
+  users         User[]
+  suscripciones Suscripcion[]
 
   @@map("companies")
 }
@@ -88,5 +104,53 @@ model Plan {
   createdAt DateTime       @default(now())
   updatedAt DateTime       @updatedAt
 
+  suscripciones Suscripcion[]
+
   @@map("plans")
+}
+
+model Suscripcion {
+  id                   String            @id @default(uuid())
+  companyId            String
+  planId               String
+  suscripcionStatus    SuscripcionStatus @default(TRIAL)
+  active               Boolean           @default(true)
+  fechaInicio          DateTime
+  fechaFin             DateTime?
+  fechaProximoPago     DateTime
+  renovacionAutomatica Boolean           @default(true)
+
+  status    ResourceStatus @default(ACTIVE)
+  createdAt DateTime       @default(now())
+  updatedAt DateTime       @updatedAt
+
+  company Company @relation(fields: [companyId], references: [id])
+  plan    Plan    @relation(fields: [planId], references: [id])
+  ordenes Orden[]
+
+  @@map("suscripciones")
+}
+
+model Orden {
+  id               String      @id @default(uuid())
+  suscripcionId    String
+  cicloInicio      DateTime
+  cicloFin         DateTime
+  monto            Float
+  moneda           String      @default("MXN")
+  ordenStatus      OrdenStatus @default(PENDIENTE)
+  active           Boolean     @default(true)
+  proveedor        String?
+  proveedorOrdenId String?
+  proveedorPagoId  String?
+  pagadaEn         DateTime?
+  motivoFallo      String?
+
+  status    ResourceStatus @default(ACTIVE)
+  createdAt DateTime       @default(now())
+  updatedAt DateTime       @updatedAt
+
+  suscripcion Suscripcion @relation(fields: [suscripcionId], references: [id])
+
+  @@map("ordenes")
 }
