@@ -24,7 +24,7 @@ export class PrismaPlanRepository implements PlanRepository {
       }),
       this.prisma.plan.count({ where }),
     ])
-    return { data: data, total }
+    return { data, total }
   }
 
   async findById(id: string): Promise<Plan | null> {

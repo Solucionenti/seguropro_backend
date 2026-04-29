@@ -31,6 +31,14 @@ export class PlanService implements IPlanService {
     return plan
   }
 
+  async getActiveById(id: string): Promise<Plan> {
+    const plan = await this.getById(id)
+    if (!plan.active) {
+      throw new NotFoundError('Plan', id)
+    }
+    return plan
+  }
+
   async update(id: string, input: UpdatePlanInput): Promise<Plan> {
     await this.getById(id)
     if (input.nombre) {

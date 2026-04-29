@@ -11,13 +11,14 @@ export const planController = new Elysia({ name: '@app/modules/plan', prefix: '/
 
   .get(
     '/',
-    async ({ query, planService, jsonPaginated }) => {
-      const { data, total } = await planService.list(query.page, query.pageSize, query.active)
+    async ({ query, userRole, planService, jsonPaginated }) => {
+      const activeFilter = userRole === UserRole.OWNER ? true : query.active
+      const { data, total } = await planService.list(query.page, query.pageSize, activeFilter)
       return jsonPaginated(data, total, query.page, query.pageSize)
     },
     {
       query: listPlanQuerySchema,
-      withRole: UserRole.MASTER_ADMIN,
+      withRole: [UserRole.MASTER_ADMIN, UserRole.OWNER],
       detail: { tags: ['Plans'], summary: 'List plans' },
     },
   )
@@ -37,13 +38,16 @@ export const planController = new Elysia({ name: '@app/modules/plan', prefix: '/
 
   .get(
     '/:id',
-    async ({ params, planService, jsonOk }) => {
-      const plan = await planService.getById(params.id)
+    async ({ params, userRole, planService, jsonOk }) => {
+      const plan =
+        userRole === UserRole.OWNER
+          ? await planService.getActiveById(params.id)
+          : await planService.getById(params.id)
       return jsonOk(plan)
     },
     {
       params: idParams,
-      withRole: UserRole.MASTER_ADMIN,
+      withRole: [UserRole.MASTER_ADMIN, UserRole.OWNER],
       detail: { tags: ['Plans'], summary: 'Get plan detail' },
     },
   )

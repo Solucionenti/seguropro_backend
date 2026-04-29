@@ -152,6 +152,31 @@ describe('PlanService', () => {
     })
   })
 
+  // ── getActiveById ────────────────────────────────────
+
+  describe('getActiveById', () => {
+    it('should return plan when found and active', async () => {
+      const plan = createMockPlan({ active: true })
+      mocks.repo.findById.mockResolvedValue(plan)
+
+      const result = await service.getActiveById('plan-1')
+
+      expect(result.id).toBe('plan-1')
+      expect(result.active).toBe(true)
+    })
+
+    it('should throw NotFoundError when plan is inactive', async () => {
+      const plan = createMockPlan({ active: false })
+      mocks.repo.findById.mockResolvedValue(plan)
+
+      expect(service.getActiveById('plan-1')).rejects.toBeInstanceOf(NotFoundError)
+    })
+
+    it('should throw NotFoundError when plan does not exist', async () => {
+      expect(service.getActiveById('nonexistent')).rejects.toBeInstanceOf(NotFoundError)
+    })
+  })
+
   // ── update ───────────────────────────────────────────
 
   describe('update', () => {
