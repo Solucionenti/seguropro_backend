@@ -34,6 +34,7 @@ export class PrismaOrdenRepository implements OrdenRepository {
       ...(filters.companyId && { suscripcion: { companyId: filters.companyId } }),
       ...(filters.cicloInicio && { cicloInicio: { gte: filters.cicloInicio } }),
       ...(filters.cicloFin && { cicloFin: { lte: filters.cicloFin } }),
+      ...(filters.active !== undefined && { active: filters.active }),
     }
     const [data, total] = await Promise.all([
       this.prisma.orden.findMany({

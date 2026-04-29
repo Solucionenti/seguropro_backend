@@ -44,6 +44,19 @@ export type CreateOrdenInput = Pick<
   proveedorPagoId?: string | null
 }
 
+export type CreateOwnerOrdenInput = {
+  cicloInicio: Date
+  cicloFin: Date
+  moneda?: string
+}
+
+export type PayOrdenInput = {
+  proveedor?: string
+  proveedorOrdenId?: string
+  proveedorPagoId?: string
+  pagadaEn?: Date
+}
+
 export type UpdateOrdenInput = Partial<
   Pick<
     OrdenModel,

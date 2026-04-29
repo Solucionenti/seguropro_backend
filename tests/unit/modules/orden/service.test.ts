@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, mock } from 'bun:test'
-import { OrdenStatus, ResourceStatus } from '@gen/enums'
+import { OrdenStatus, Periodicidad, ResourceStatus, SuscripcionStatus } from '@gen/enums'
 import { OrdenService } from '@/modules/orden/application/service'
 import type {
   CompanyBasicInfo,
@@ -8,7 +8,10 @@ import type {
   SuscripcionBasicInfo,
 } from '@/modules/orden/domain/entities'
 import type { OrdenRepository } from '@/modules/orden/domain/repository'
-import type { SuscripcionProvider } from '@/modules/orden/domain/suscripcion-provider'
+import type {
+  ActiveSuscripcionInfo,
+  SuscripcionProvider,
+} from '@/modules/orden/domain/suscripcion-provider'
 import { NotFoundError } from '@/shared/domain/not-found-error'
 import { ValidationError } from '@/shared/domain/validation-error'
 import type { Mocked } from '../../../utils/mocked'
@@ -25,6 +28,13 @@ const suscripcionBasic: SuscripcionBasicInfo = {
   id: 'sus-1',
   companyId: 'company-1',
   company,
+}
+
+const activeSuscripcion: ActiveSuscripcionInfo = {
+  id: 'sus-1',
+  companyId: 'company-1',
+  suscripcionStatus: SuscripcionStatus.ACTIVA,
+  plan: { precio: 99.99, periodicidad: Periodicidad.MENSUAL },
 }
 
 function createMockOrden(overrides: Partial<Orden> = {}): Orden {
@@ -66,6 +76,7 @@ function createMocks() {
   }
   const suscripcionProvider: Mocked<SuscripcionProvider> = {
     findById: mock(() => Promise.resolve({ id: 'sus-1', companyId: 'company-1' })),
+    findActiveByCompany: mock(() => Promise.resolve(activeSuscripcion)),
     updateFechaProximoPago: mock(() => Promise.resolve()),
   }
   return { repo, suscripcionProvider }
@@ -251,6 +262,199 @@ describe('OrdenService', () => {
 
     it('should throw NotFoundError when order not found', async () => {
       expect(service.deactivate('nonexistent')).rejects.toBeInstanceOf(NotFoundError)
+    })
+  })
+
+  // ── listMyOrdenes ────────────────────────────────────
+
+  describe('listMyOrdenes', () => {
+    it('should always filter by companyId and active=true', async () => {
+      mocks.repo.findAll.mockResolvedValue({ data: [], total: 0 })
+
+      await service.listMyOrdenes('company-1', 1, 20, {})
+
+      expect(mocks.repo.findAll).toHaveBeenCalledWith(
+        1,
+        20,
+        expect.objectContaining({ companyId: 'company-1', active: true }),
+      )
+    })
+
+    it('should forward status and date filters', async () => {
+      const cicloInicio = new Date('2025-01-01')
+      const cicloFin = new Date('2025-01-31')
+      mocks.repo.findAll.mockResolvedValue({ data: [], total: 0 })
+
+      await service.listMyOrdenes('company-1', 1, 10, {
+        ordenStatus: OrdenStatus.PAGADA,
+        cicloInicio,
+        cicloFin,
+      })
+
+      expect(mocks.repo.findAll).toHaveBeenCalledWith(
+        1,
+        10,
+        expect.objectContaining({
+          companyId: 'company-1',
+          active: true,
+          ordenStatus: OrdenStatus.PAGADA,
+          cicloInicio,
+          cicloFin,
+        }),
+      )
+    })
+  })
+
+  // ── createMyOrden ────────────────────────────────────
+
+  describe('createMyOrden', () => {
+    const ownerInput = {
+      cicloInicio: new Date('2025-01-01'),
+      cicloFin: new Date('2025-01-31'),
+    }
+
+    it('should create PENDIENTE order with monto from plan price', async () => {
+      const created = createMockWithDetails()
+      mocks.repo.create.mockResolvedValue(created)
+
+      const result = await service.createMyOrden('company-1', ownerInput)
+
+      expect(mocks.suscripcionProvider.findActiveByCompany).toHaveBeenCalledWith('company-1')
+      expect(mocks.repo.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          suscripcionId: 'sus-1',
+          monto: 99.99,
+          moneda: 'MXN',
+          ordenStatus: OrdenStatus.PENDIENTE,
+        }),
+      )
+      expect(result.id).toBe('ord-1')
+    })
+
+    it('should use provided moneda', async () => {
+      mocks.repo.create.mockResolvedValue(createMockWithDetails())
+
+      await service.createMyOrden('company-1', { ...ownerInput, moneda: 'USD' })
+
+      expect(mocks.repo.create).toHaveBeenCalledWith(
+        expect.objectContaining({ moneda: 'USD' }),
+      )
+    })
+
+    it('should throw ValidationError when no active subscription exists', async () => {
+      mocks.suscripcionProvider.findActiveByCompany.mockResolvedValue(null)
+
+      expect(service.createMyOrden('company-1', ownerInput)).rejects.toBeInstanceOf(
+        ValidationError,
+      )
+    })
+
+    it('should throw ValidationError when subscription status is not TRIAL or ACTIVA', async () => {
+      mocks.suscripcionProvider.findActiveByCompany.mockResolvedValue({
+        ...activeSuscripcion,
+        suscripcionStatus: SuscripcionStatus.SUSPENDIDA,
+      })
+
+      expect(service.createMyOrden('company-1', ownerInput)).rejects.toBeInstanceOf(
+        ValidationError,
+      )
+    })
+
+    it('should throw ValidationError on duplicate PAGADA order for same period', async () => {
+      mocks.repo.findPagadaByPeriod.mockResolvedValue(
+        createMockOrden({ ordenStatus: OrdenStatus.PAGADA }),
+      )
+
+      expect(service.createMyOrden('company-1', ownerInput)).rejects.toBeInstanceOf(
+        ValidationError,
+      )
+    })
+  })
+
+  // ── getMyOrdenById ───────────────────────────────────
+
+  describe('getMyOrdenById', () => {
+    it('should return order when it belongs to the company', async () => {
+      mocks.repo.findById.mockResolvedValue(createMockWithDetails())
+
+      const result = await service.getMyOrdenById('company-1', 'ord-1')
+
+      expect(result.id).toBe('ord-1')
+    })
+
+    it('should throw NotFoundError when order belongs to a different company', async () => {
+      mocks.repo.findById.mockResolvedValue(createMockWithDetails())
+
+      expect(service.getMyOrdenById('company-OTHER', 'ord-1')).rejects.toBeInstanceOf(
+        NotFoundError,
+      )
+    })
+
+    it('should throw NotFoundError when order does not exist', async () => {
+      expect(service.getMyOrdenById('company-1', 'nonexistent')).rejects.toBeInstanceOf(
+        NotFoundError,
+      )
+    })
+  })
+
+  // ── payMyOrden ───────────────────────────────────────
+
+  describe('payMyOrden', () => {
+    it('should mark order as PAGADA and update fechaProximoPago', async () => {
+      const existing = createMockWithDetails({ ordenStatus: OrdenStatus.PENDIENTE })
+      mocks.repo.findById.mockResolvedValue(existing)
+      const paid = createMockWithDetails({ ordenStatus: OrdenStatus.PAGADA })
+      mocks.repo.update.mockResolvedValue(paid)
+
+      const result = await service.payMyOrden('company-1', 'ord-1', {})
+
+      expect(mocks.repo.update).toHaveBeenCalledWith(
+        'ord-1',
+        expect.objectContaining({ ordenStatus: OrdenStatus.PAGADA }),
+      )
+      expect(mocks.suscripcionProvider.updateFechaProximoPago).toHaveBeenCalledWith(
+        'sus-1',
+        existing.cicloFin,
+      )
+      expect(result.ordenStatus).toBe(OrdenStatus.PAGADA)
+    })
+
+    it('should use provided pagadaEn when supplied', async () => {
+      const pagadaEn = new Date('2025-01-15')
+      mocks.repo.findById.mockResolvedValue(createMockWithDetails())
+      mocks.repo.update.mockResolvedValue(createMockWithDetails({ ordenStatus: OrdenStatus.PAGADA }))
+
+      await service.payMyOrden('company-1', 'ord-1', { pagadaEn })
+
+      expect(mocks.repo.update).toHaveBeenCalledWith(
+        'ord-1',
+        expect.objectContaining({ pagadaEn }),
+      )
+    })
+
+    it('should throw ValidationError when order is not PENDIENTE', async () => {
+      mocks.repo.findById.mockResolvedValue(
+        createMockWithDetails({ ordenStatus: OrdenStatus.PAGADA }),
+      )
+
+      expect(service.payMyOrden('company-1', 'ord-1', {})).rejects.toBeInstanceOf(ValidationError)
+    })
+
+    it('should throw ValidationError when a PAGADA order already exists for the period', async () => {
+      mocks.repo.findById.mockResolvedValue(createMockWithDetails())
+      mocks.repo.findPagadaByPeriod.mockResolvedValue(
+        createMockOrden({ id: 'ord-other', ordenStatus: OrdenStatus.PAGADA }),
+      )
+
+      expect(service.payMyOrden('company-1', 'ord-1', {})).rejects.toBeInstanceOf(ValidationError)
+    })
+
+    it('should throw NotFoundError when order belongs to a different company', async () => {
+      mocks.repo.findById.mockResolvedValue(createMockWithDetails())
+
+      expect(service.payMyOrden('company-OTHER', 'ord-1', {})).rejects.toBeInstanceOf(
+        NotFoundError,
+      )
     })
   })
 })

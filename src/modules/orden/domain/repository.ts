@@ -6,6 +6,7 @@ export interface OrdenFilters {
   ordenStatus?: OrdenStatus
   cicloInicio?: Date
   cicloFin?: Date
+  active?: boolean
 }
 
 export interface OrdenRepository {

@@ -22,6 +22,25 @@ export const createOrdenSchema = z.object({
   proveedorPagoId: z.string().optional(),
 })
 
+export const listOwnerOrdenQuerySchema = paginationQuery.extend({
+  ordenStatus: ordenStatusEnum.optional(),
+  cicloInicio: z.coerce.date().optional(),
+  cicloFin: z.coerce.date().optional(),
+})
+
+export const createOwnerOrdenSchema = z.object({
+  cicloInicio: z.coerce.date(),
+  cicloFin: z.coerce.date(),
+  moneda: z.string().min(1).max(10).default('MXN'),
+})
+
+export const payOrdenSchema = z.object({
+  proveedor: z.string().optional(),
+  proveedorOrdenId: z.string().optional(),
+  proveedorPagoId: z.string().optional(),
+  pagadaEn: z.coerce.date().optional(),
+})
+
 export const updateOrdenSchema = z.object({
   ordenStatus: ordenStatusEnum.optional(),
   proveedor: z.string().optional(),

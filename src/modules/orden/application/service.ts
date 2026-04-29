@@ -1,10 +1,21 @@
-import { OrdenStatus } from '@gen/enums'
+import { OrdenStatus, SuscripcionStatus } from '@gen/enums'
 import { NotFoundError } from '@/shared/domain/not-found-error'
 import { ValidationError } from '@/shared/domain/validation-error'
-import type { CreateOrdenInput, OrdenWithDetails, UpdateOrdenInput } from '../domain/entities'
+import type {
+  CreateOrdenInput,
+  CreateOwnerOrdenInput,
+  OrdenWithDetails,
+  PayOrdenInput,
+  UpdateOrdenInput,
+} from '../domain/entities'
 import type { OrdenFilters, OrdenRepository } from '../domain/repository'
 import type { IOrdenService } from '../domain/service'
 import type { SuscripcionProvider } from '../domain/suscripcion-provider'
+
+const ACTIVE_SUSCRIPCION_STATUSES: SuscripcionStatus[] = [
+  SuscripcionStatus.TRIAL,
+  SuscripcionStatus.ACTIVA,
+]
 
 export class OrdenService implements IOrdenService {
   constructor(
@@ -76,5 +87,87 @@ export class OrdenService implements IOrdenService {
   async deactivate(id: string): Promise<void> {
     await this.getById(id)
     return this.repo.deactivate(id)
+  }
+
+  async listMyOrdenes(
+    companyId: string,
+    page: number,
+    pageSize: number,
+    filters: Pick<OrdenFilters, 'ordenStatus' | 'cicloInicio' | 'cicloFin'>,
+  ): Promise<{ data: OrdenWithDetails[]; total: number }> {
+    return this.repo.findAll(page, pageSize, { ...filters, companyId, active: true })
+  }
+
+  async createMyOrden(
+    companyId: string,
+    input: CreateOwnerOrdenInput,
+  ): Promise<OrdenWithDetails> {
+    const suscripcion = await this.suscripcionProvider.findActiveByCompany(companyId)
+    if (!suscripcion) {
+      throw new ValidationError('No active subscription found for this company')
+    }
+
+    if (!ACTIVE_SUSCRIPCION_STATUSES.includes(suscripcion.suscripcionStatus)) {
+      throw new ValidationError('Subscription must have status TRIAL or ACTIVA to create an order')
+    }
+
+    const duplicate = await this.repo.findPagadaByPeriod(
+      suscripcion.id,
+      input.cicloInicio,
+      input.cicloFin,
+    )
+    if (duplicate) {
+      throw new ValidationError('A PAGADA order already exists for this subscription and period')
+    }
+
+    return this.repo.create({
+      suscripcionId: suscripcion.id,
+      cicloInicio: input.cicloInicio,
+      cicloFin: input.cicloFin,
+      monto: suscripcion.plan.precio,
+      moneda: input.moneda ?? 'MXN',
+      ordenStatus: OrdenStatus.PENDIENTE,
+    })
+  }
+
+  async getMyOrdenById(companyId: string, id: string): Promise<OrdenWithDetails> {
+    const orden = await this.getById(id)
+    if (orden.suscripcion.companyId !== companyId) {
+      throw new NotFoundError('Orden', id)
+    }
+    return orden
+  }
+
+  async payMyOrden(
+    companyId: string,
+    id: string,
+    input: PayOrdenInput,
+  ): Promise<OrdenWithDetails> {
+    const orden = await this.getMyOrdenById(companyId, id)
+
+    if (orden.ordenStatus !== OrdenStatus.PENDIENTE) {
+      throw new ValidationError('Only PENDIENTE orders can be paid')
+    }
+
+    const duplicate = await this.repo.findPagadaByPeriod(
+      orden.suscripcionId,
+      orden.cicloInicio,
+      orden.cicloFin,
+    )
+    if (duplicate) {
+      throw new ValidationError('A PAGADA order already exists for this period')
+    }
+
+    const updated = await this.repo.update(id, {
+      ordenStatus: OrdenStatus.PAGADA,
+      pagadaEn: input.pagadaEn ?? new Date(),
+      proveedor: input.proveedor,
+      proveedorOrdenId: input.proveedorOrdenId,
+      proveedorPagoId: input.proveedorPagoId,
+    })
+
+    await this.suscripcionProvider.updateFechaProximoPago(orden.suscripcionId, orden.cicloFin)
+
+    return updated
   }
 }

@@ -1,6 +1,6 @@
 import { ResourceStatus } from '@gen/enums'
 import type { AppPrismaClient } from '@/config/database'
-import type { SuscripcionProvider } from '../domain/suscripcion-provider'
+import type { ActiveSuscripcionInfo, SuscripcionProvider } from '../domain/suscripcion-provider'
 
 export class PrismaSuscripcionProvider implements SuscripcionProvider {
   constructor(private readonly prisma: AppPrismaClient) {}
@@ -9,6 +9,18 @@ export class PrismaSuscripcionProvider implements SuscripcionProvider {
     return this.prisma.suscripcion.findFirst({
       where: { id, status: ResourceStatus.ACTIVE },
       select: { id: true, companyId: true },
+    })
+  }
+
+  async findActiveByCompany(companyId: string): Promise<ActiveSuscripcionInfo | null> {
+    return this.prisma.suscripcion.findFirst({
+      where: { companyId, active: true, status: ResourceStatus.ACTIVE },
+      select: {
+        id: true,
+        companyId: true,
+        suscripcionStatus: true,
+        plan: { select: { precio: true, periodicidad: true } },
+      },
     })
   }
 
