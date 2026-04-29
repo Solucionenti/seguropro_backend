@@ -131,7 +131,9 @@ describe('OrdenService', () => {
 
     it('should create PAGADA order and update fechaProximoPago to cicloFin', async () => {
       const input = { ...baseInput, ordenStatus: OrdenStatus.PAGADA }
-      mocks.repo.create.mockResolvedValue(createMockWithDetails({ ordenStatus: OrdenStatus.PAGADA }))
+      mocks.repo.create.mockResolvedValue(
+        createMockWithDetails({ ordenStatus: OrdenStatus.PAGADA }),
+      )
 
       await service.create(input)
 
@@ -149,7 +151,9 @@ describe('OrdenService', () => {
 
     it('should throw ValidationError on duplicate PAGADA order for same period', async () => {
       const input = { ...baseInput, ordenStatus: OrdenStatus.PAGADA }
-      mocks.repo.findPagadaByPeriod.mockResolvedValue(createMockOrden({ ordenStatus: OrdenStatus.PAGADA }))
+      mocks.repo.findPagadaByPeriod.mockResolvedValue(
+        createMockOrden({ ordenStatus: OrdenStatus.PAGADA }),
+      )
 
       expect(service.create(input)).rejects.toBeInstanceOf(ValidationError)
     })

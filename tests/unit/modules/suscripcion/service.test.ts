@@ -47,9 +47,7 @@ function createMockSuscripcion(overrides: Partial<Suscripcion> = {}): Suscripcio
   }
 }
 
-function createMockWithDetails(
-  overrides: Partial<Suscripcion> = {},
-): SuscripcionWithDetails {
+function createMockWithDetails(overrides: Partial<Suscripcion> = {}): SuscripcionWithDetails {
   return { ...createMockSuscripcion(overrides), company, plan }
 }
 
@@ -215,9 +213,7 @@ describe('SuscripcionService', () => {
         createMockWithDetails({ suscripcionStatus: SuscripcionStatus.CANCELADA }),
       )
 
-      expect(
-        service.update('sus-1', { active: true }),
-      ).rejects.toBeInstanceOf(ValidationError)
+      expect(service.update('sus-1', { active: true })).rejects.toBeInstanceOf(ValidationError)
     })
 
     it('should allow active=true when updating status to ACTIVA in the same call', async () => {
