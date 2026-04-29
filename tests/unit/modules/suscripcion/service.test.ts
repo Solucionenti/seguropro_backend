@@ -58,6 +58,7 @@ function createMocks() {
     findAll: mock(() => Promise.resolve({ data: [], total: 0 })),
     findById: mock(() => Promise.resolve(null)),
     findActiveByCompany: mock(() => Promise.resolve(null)),
+    findActiveByCompanyWithDetails: mock(() => Promise.resolve(null)),
     create: mock(() => Promise.resolve(createMockWithDetails())),
     update: mock(() => Promise.resolve(createMockWithDetails())),
     deactivateByCompany: mock(() => Promise.resolve()),
@@ -246,6 +247,122 @@ describe('SuscripcionService', () => {
 
     it('should throw NotFoundError when subscription not found', async () => {
       expect(service.deactivate('nonexistent')).rejects.toBeInstanceOf(NotFoundError)
+    })
+  })
+
+  // ── getMySubscription ────────────────────────────────
+
+  describe('getMySubscription', () => {
+    it('should return active subscription with details when one exists', async () => {
+      const sub = createMockWithDetails()
+      mocks.repo.findActiveByCompanyWithDetails.mockResolvedValue(sub)
+
+      const result = await service.getMySubscription('company-1')
+
+      expect(result).not.toBeNull()
+      expect(result?.id).toBe('sus-1')
+      expect(result?.plan.nombre).toBe('Plan Básico')
+      expect(mocks.repo.findActiveByCompanyWithDetails).toHaveBeenCalledWith('company-1')
+    })
+
+    it('should return null when no active subscription exists', async () => {
+      const result = await service.getMySubscription('company-1')
+
+      expect(result).toBeNull()
+    })
+  })
+
+  // ── createMySubscription ─────────────────────────────
+
+  describe('createMySubscription', () => {
+    it('should create subscription using companyId from context and computed dates', async () => {
+      const created = createMockWithDetails({ suscripcionStatus: SuscripcionStatus.ACTIVA })
+      mocks.repo.create.mockResolvedValue(created)
+
+      const result = await service.createMySubscription('company-1', { planId: 'plan-1' })
+
+      expect(mocks.repo.findActiveByCompany).toHaveBeenCalledWith('company-1')
+      expect(mocks.planProvider.findActiveById).toHaveBeenCalledWith('plan-1')
+      expect(mocks.repo.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          companyId: 'company-1',
+          planId: 'plan-1',
+          active: true,
+          suscripcionStatus: SuscripcionStatus.ACTIVA,
+        }),
+      )
+      expect(result.suscripcionStatus).toBe(SuscripcionStatus.ACTIVA)
+    })
+
+    it('should compute fechaProximoPago based on plan periodicidad', async () => {
+      mocks.planProvider.findActiveById.mockResolvedValue({
+        ...plan,
+        periodicidad: Periodicidad.ANUAL,
+      })
+      mocks.repo.create.mockResolvedValue(createMockWithDetails())
+
+      await service.createMySubscription('company-1', { planId: 'plan-1' })
+
+      const callArg = mocks.repo.create.mock.calls[0]![0] as { fechaInicio: Date; fechaProximoPago: Date }
+      const diff =
+        callArg.fechaProximoPago.getFullYear() - callArg.fechaInicio.getFullYear()
+      expect(diff).toBe(1)
+    })
+
+    it('should throw ValidationError when company already has active subscription', async () => {
+      mocks.repo.findActiveByCompany.mockResolvedValue(createMockSuscripcion())
+
+      expect(
+        service.createMySubscription('company-1', { planId: 'plan-1' }),
+      ).rejects.toBeInstanceOf(ValidationError)
+    })
+
+    it('should throw ValidationError when plan not found or inactive', async () => {
+      mocks.planProvider.findActiveById.mockResolvedValue(null)
+
+      expect(
+        service.createMySubscription('company-1', { planId: 'bad-plan' }),
+      ).rejects.toBeInstanceOf(ValidationError)
+    })
+
+    it('should respect provided suscripcionStatus', async () => {
+      mocks.repo.create.mockResolvedValue(
+        createMockWithDetails({ suscripcionStatus: SuscripcionStatus.TRIAL }),
+      )
+
+      await service.createMySubscription('company-1', {
+        planId: 'plan-1',
+        suscripcionStatus: SuscripcionStatus.TRIAL,
+      })
+
+      expect(mocks.repo.create).toHaveBeenCalledWith(
+        expect.objectContaining({ suscripcionStatus: SuscripcionStatus.TRIAL }),
+      )
+    })
+  })
+
+  // ── cancelMySubscription ─────────────────────────────
+
+  describe('cancelMySubscription', () => {
+    it('should cancel active subscription with correct fields', async () => {
+      mocks.repo.findActiveByCompany.mockResolvedValue(createMockSuscripcion())
+
+      await service.cancelMySubscription('company-1')
+
+      expect(mocks.repo.update).toHaveBeenCalledWith(
+        'sus-1',
+        expect.objectContaining({
+          suscripcionStatus: SuscripcionStatus.CANCELADA,
+          active: false,
+          renovacionAutomatica: false,
+        }),
+      )
+      const callArg = mocks.repo.update.mock.calls[0]![1] as { fechaFin: unknown }
+      expect(callArg.fechaFin).toBeInstanceOf(Date)
+    })
+
+    it('should throw NotFoundError when no active subscription exists', async () => {
+      expect(service.cancelMySubscription('company-1')).rejects.toBeInstanceOf(NotFoundError)
     })
   })
 })

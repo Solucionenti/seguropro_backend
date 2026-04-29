@@ -20,6 +20,7 @@ export interface SuscripcionRepository {
   ): Promise<{ data: SuscripcionWithDetails[]; total: number }>
   findById(id: string): Promise<SuscripcionWithDetails | null>
   findActiveByCompany(companyId: string): Promise<Suscripcion | null>
+  findActiveByCompanyWithDetails(companyId: string): Promise<SuscripcionWithDetails | null>
   create(input: CreateSuscripcionInput): Promise<SuscripcionWithDetails>
   update(id: string, input: UpdateSuscripcionInput): Promise<SuscripcionWithDetails>
   deactivateByCompany(companyId: string, excludeId?: string): Promise<void>

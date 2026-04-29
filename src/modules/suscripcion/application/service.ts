@@ -1,8 +1,9 @@
-import { SuscripcionStatus } from '@gen/enums'
+import { Periodicidad, SuscripcionStatus } from '@gen/enums'
 import { NotFoundError } from '@/shared/domain/not-found-error'
 import { ValidationError } from '@/shared/domain/validation-error'
 import type { CompanyProvider } from '../domain/company-provider'
 import type {
+  CreateOwnerSuscripcionInput,
   CreateSuscripcionInput,
   SuscripcionWithDetails,
   UpdateSuscripcionInput,
@@ -12,6 +13,25 @@ import type { SuscripcionFilters, SuscripcionRepository } from '../domain/reposi
 import type { ISuscripcionService } from '../domain/service'
 
 const ACTIVE_STATUSES: SuscripcionStatus[] = [SuscripcionStatus.TRIAL, SuscripcionStatus.ACTIVA]
+
+function addPeriod(date: Date, periodicidad: Periodicidad): Date {
+  const d = new Date(date)
+  switch (periodicidad) {
+    case Periodicidad.MENSUAL:
+      d.setMonth(d.getMonth() + 1)
+      break
+    case Periodicidad.TRIMESTRAL:
+      d.setMonth(d.getMonth() + 3)
+      break
+    case Periodicidad.SEMESTRAL:
+      d.setMonth(d.getMonth() + 6)
+      break
+    case Periodicidad.ANUAL:
+      d.setFullYear(d.getFullYear() + 1)
+      break
+  }
+  return d
+}
 
 export class SuscripcionService implements ISuscripcionService {
   constructor(
@@ -71,5 +91,51 @@ export class SuscripcionService implements ISuscripcionService {
   async deactivate(id: string): Promise<void> {
     await this.getById(id)
     return this.repo.deactivate(id)
+  }
+
+  async getMySubscription(companyId: string): Promise<SuscripcionWithDetails | null> {
+    return this.repo.findActiveByCompanyWithDetails(companyId)
+  }
+
+  async createMySubscription(
+    companyId: string,
+    input: CreateOwnerSuscripcionInput,
+  ): Promise<SuscripcionWithDetails> {
+    const existing = await this.repo.findActiveByCompany(companyId)
+    if (existing) {
+      throw new ValidationError('Company already has an active subscription')
+    }
+
+    const plan = await this.planProvider.findActiveById(input.planId)
+    if (!plan) {
+      throw new ValidationError(`Plan with id "${input.planId}" not found or inactive`)
+    }
+
+    const fechaInicio = new Date()
+    const fechaProximoPago = addPeriod(fechaInicio, plan.periodicidad)
+    const suscripcionStatus = input.suscripcionStatus ?? SuscripcionStatus.ACTIVA
+
+    return this.repo.create({
+      companyId,
+      planId: input.planId,
+      suscripcionStatus,
+      active: true,
+      fechaInicio,
+      fechaProximoPago,
+      renovacionAutomatica: input.renovacionAutomatica ?? true,
+    })
+  }
+
+  async cancelMySubscription(companyId: string): Promise<void> {
+    const suscripcion = await this.repo.findActiveByCompany(companyId)
+    if (!suscripcion) {
+      throw new NotFoundError('active subscription', companyId)
+    }
+    await this.repo.update(suscripcion.id, {
+      suscripcionStatus: SuscripcionStatus.CANCELADA,
+      active: false,
+      fechaFin: new Date(),
+      renovacionAutomatica: false,
+    })
   }
 }

@@ -1,3 +1,4 @@
+import type { SuscripcionStatus } from '@gen/enums'
 import type { CompanyModel } from '@gen/models/Company'
 import type { PlanModel } from '@gen/models/Plan'
 import type { SuscripcionModel } from '@gen/models/Suscripcion'
@@ -32,6 +33,12 @@ export type CreateSuscripcionInput = Pick<
 > & {
   active?: boolean
   fechaFin?: Date | null
+  renovacionAutomatica?: boolean
+}
+
+export type CreateOwnerSuscripcionInput = {
+  planId: string
+  suscripcionStatus?: SuscripcionStatus
   renovacionAutomatica?: boolean
 }
 

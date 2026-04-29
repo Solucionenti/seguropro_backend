@@ -1,4 +1,5 @@
 import type {
+  CreateOwnerSuscripcionInput,
   CreateSuscripcionInput,
   SuscripcionWithDetails,
   UpdateSuscripcionInput,
@@ -15,4 +16,10 @@ export interface ISuscripcionService {
   getById(id: string): Promise<SuscripcionWithDetails>
   update(id: string, input: UpdateSuscripcionInput): Promise<SuscripcionWithDetails>
   deactivate(id: string): Promise<void>
+  getMySubscription(companyId: string): Promise<SuscripcionWithDetails | null>
+  createMySubscription(
+    companyId: string,
+    input: CreateOwnerSuscripcionInput,
+  ): Promise<SuscripcionWithDetails>
+  cancelMySubscription(companyId: string): Promise<void>
 }

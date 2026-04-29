@@ -26,6 +26,12 @@ export const createSuscripcionSchema = z.object({
   renovacionAutomatica: z.boolean().default(true),
 })
 
+export const createOwnerSuscripcionSchema = z.object({
+  planId: z.string().uuid(),
+  suscripcionStatus: z.enum(['TRIAL', 'ACTIVA']).default('ACTIVA'),
+  renovacionAutomatica: z.boolean().default(true),
+})
+
 export const updateSuscripcionSchema = z.object({
   suscripcionStatus: suscripcionStatusEnum.optional(),
   active: z.boolean().optional(),

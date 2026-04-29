@@ -4,6 +4,7 @@ import { suscripcionServicePlugin } from '@/config/services'
 import { authRouter } from '@/shared/routers/auth-router'
 import { idParams } from '@/shared/utils/pagination'
 import {
+  createOwnerSuscripcionSchema,
   createSuscripcionSchema,
   listSuscripcionQuerySchema,
   updateSuscripcionSchema,
@@ -15,6 +16,8 @@ export const suscripcionController = new Elysia({
 })
   .use(authRouter)
   .use(suscripcionServicePlugin)
+
+  // ── MASTER_ADMIN routes ──────────────────────────────
 
   .get(
     '/',
@@ -45,6 +48,65 @@ export const suscripcionController = new Elysia({
       detail: { tags: ['Suscripciones'], summary: 'Create subscription' },
     },
   )
+
+  // ── OWNER self-service routes ─────────────────────────
+  // Must be defined before /:id to avoid param shadowing
+
+  .get(
+    '/mi-suscripcion',
+    async ({ companyId, suscripcionService, jsonOk, jsonOkNoData }) => {
+      const suscripcion = await suscripcionService.getMySubscription(companyId as string)
+      if (!suscripcion) {
+        return jsonOkNoData('No active subscription found')
+      }
+      return jsonOk(suscripcion)
+    },
+    {
+      withRole: UserRole.OWNER,
+      detail: {
+        tags: ['Suscripciones'],
+        summary: 'Get my active subscription',
+        description: 'Returns the active subscription for the authenticated owner\'s company.',
+      },
+    },
+  )
+
+  .post(
+    '/mi-suscripcion',
+    async ({ companyId, body, suscripcionService, jsonOk }) => {
+      const suscripcion = await suscripcionService.createMySubscription(companyId as string, body)
+      return jsonOk(suscripcion, 'Subscription created successfully')
+    },
+    {
+      body: createOwnerSuscripcionSchema,
+      withRole: UserRole.OWNER,
+      detail: {
+        tags: ['Suscripciones'],
+        summary: 'Subscribe to a plan',
+        description:
+          'Creates a new subscription for the owner\'s company. Fails if an active subscription already exists.',
+      },
+    },
+  )
+
+  .delete(
+    '/mi-suscripcion',
+    async ({ companyId, suscripcionService, jsonOkNoData }) => {
+      await suscripcionService.cancelMySubscription(companyId as string)
+      return jsonOkNoData('Subscription cancelled successfully')
+    },
+    {
+      withRole: UserRole.OWNER,
+      detail: {
+        tags: ['Suscripciones'],
+        summary: 'Cancel my subscription',
+        description:
+          'Cancels the active subscription for the owner\'s company. Sets status to CANCELADA and disables automatic renewal.',
+      },
+    },
+  )
+
+  // ── MASTER_ADMIN detail/edit routes ──────────────────
 
   .get(
     '/:id',
