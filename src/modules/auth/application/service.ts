@@ -4,7 +4,7 @@ import type { PasswordHasher } from '@/shared/domain/password-hasher'
 import { UnauthorizedError } from '@/shared/domain/unauthorized-error'
 import type { IAuthService } from '../domain/auth-service'
 import type { AuthUserProvider } from '../domain/auth-user-provider'
-import type { IdentifyResult, LoginInput, LoginResult } from '../domain/entities'
+import type { IdentifyResult, LoginInput, LoginResult, RefreshResult } from '../domain/entities'
 
 export class AuthService implements IAuthService {
   constructor(
@@ -56,5 +56,17 @@ export class AuthService implements IAuthService {
   async identify(email: string): Promise<IdentifyResult> {
     const companies = await this.authUserProvider.findCompaniesByEmail(email)
     return { companies }
+  }
+
+  async refresh(refreshToken: string): Promise<RefreshResult> {
+    const payload = await this.jwtService.verifyRefreshToken(refreshToken)
+    if (!payload) {
+      throw new UnauthorizedError('Invalid or expired refresh token')
+    }
+    return this.jwtService.signTokenPair({
+      sub: payload.sub,
+      role: payload.role,
+      companyId: payload.companyId,
+    })
   }
 }

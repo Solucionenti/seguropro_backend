@@ -18,3 +18,8 @@ export interface IdentifyResult {
     nombreComercial: string | null
   }[]
 }
+
+export interface RefreshResult {
+  accessToken: string
+  refreshToken: string
+}

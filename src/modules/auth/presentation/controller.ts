@@ -1,7 +1,7 @@
 import { Elysia } from 'elysia'
 import { authServicePlugin } from '@/config/services'
 import { publicRouter } from '@/shared/routers/public-router'
-import { identifySchema, loginSchema } from './schemas'
+import { identifySchema, loginSchema, refreshSchema } from './schemas'
 
 export const authController = new Elysia({
   name: '@app/modules/auth',
@@ -38,6 +38,21 @@ export const authController = new Elysia({
         summary: 'Identify user companies',
         description:
           'Given an email, returns the list of companies where this email is registered. Use this before login when a user may belong to multiple companies.',
+      },
+    },
+  )
+  .post(
+    '/refresh',
+    async ({ body, authService, jsonOk }) => {
+      const result = await authService.refresh(body.refreshToken)
+      return jsonOk(result, 'Tokens refreshed')
+    },
+    {
+      body: refreshSchema,
+      detail: {
+        tags: ['Auth'],
+        summary: 'Refresh tokens',
+        description: 'Exchange a valid refresh token for a new access/refresh token pair.',
       },
     },
   )
