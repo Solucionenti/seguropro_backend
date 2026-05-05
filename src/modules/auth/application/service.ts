@@ -16,7 +16,7 @@ export class AuthService implements IAuthService {
   async login(input: LoginInput): Promise<LoginResult> {
     const user = input.companyId
       ? await this.authUserProvider.findByEmailAndCompany(input.email, input.companyId)
-      : await this.authUserProvider.findMasterAdminByEmail(input.email)
+      : await this.authUserProvider.findMasterAdminOrOwnerByEmail(input.email)
 
     if (!user) {
       throw new UnauthorizedError('Invalid credentials')

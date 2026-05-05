@@ -98,10 +98,7 @@ export class OrdenService implements IOrdenService {
     return this.repo.findAll(page, pageSize, { ...filters, companyId, active: true })
   }
 
-  async createMyOrden(
-    companyId: string,
-    input: CreateOwnerOrdenInput,
-  ): Promise<OrdenWithDetails> {
+  async createMyOrden(companyId: string, input: CreateOwnerOrdenInput): Promise<OrdenWithDetails> {
     const suscripcion = await this.suscripcionProvider.findActiveByCompany(companyId)
     if (!suscripcion) {
       throw new ValidationError('No active subscription found for this company')
@@ -138,11 +135,7 @@ export class OrdenService implements IOrdenService {
     return orden
   }
 
-  async payMyOrden(
-    companyId: string,
-    id: string,
-    input: PayOrdenInput,
-  ): Promise<OrdenWithDetails> {
+  async payMyOrden(companyId: string, id: string, input: PayOrdenInput): Promise<OrdenWithDetails> {
     const orden = await this.getMyOrdenById(companyId, id)
 
     if (orden.ordenStatus !== OrdenStatus.PENDIENTE) {

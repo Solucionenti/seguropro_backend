@@ -8,6 +8,7 @@ export type AuthUser = Pick<
 export interface AuthUserProvider {
   findByEmailAndCompany(email: string, companyId: string): Promise<AuthUser | null>
   findMasterAdminByEmail(email: string): Promise<AuthUser | null>
+  findMasterAdminOrOwnerByEmail(email: string): Promise<AuthUser | null>
   findCompaniesByEmail(
     email: string,
   ): Promise<{ companyId: string; nombreComercial: string | null }[]>

@@ -1,5 +1,6 @@
 import { Elysia } from 'elysia'
-import { authServicePlugin } from '@/config/services'
+import { authServicePlugin, userServicePlugin } from '@/config/services'
+import { createOwnerSchema } from '@/modules/user/presentation/schemas'
 import { publicRouter } from '@/shared/routers/public-router'
 import { identifySchema, loginSchema, refreshSchema } from './schemas'
 
@@ -8,6 +9,7 @@ export const authController = new Elysia({
   prefix: '/auth',
 })
   .use(publicRouter)
+  .use(userServicePlugin)
   .use(authServicePlugin)
   .post(
     '/login',
@@ -53,6 +55,22 @@ export const authController = new Elysia({
         tags: ['Auth'],
         summary: 'Refresh tokens',
         description: 'Exchange a valid refresh token for a new access/refresh token pair.',
+      },
+    },
+  )
+  .post(
+    '/register-owner',
+    async ({ body, userService, jsonOk }) => {
+      const result = await userService.createOwner(body)
+      return jsonOk(result, 'Owner and company created successfully')
+    },
+    {
+      body: createOwnerSchema,
+      detail: {
+        tags: ['Register Owner'],
+        summary: 'Create OWNER with Company',
+        description:
+          'Creates a new OWNER user and their associated Company in a single transaction. Email must be globally unique among owners. One OWNER per Company.',
       },
     },
   )

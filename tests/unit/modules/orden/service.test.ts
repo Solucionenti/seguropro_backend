@@ -336,17 +336,13 @@ describe('OrdenService', () => {
 
       await service.createMyOrden('company-1', { ...ownerInput, moneda: 'USD' })
 
-      expect(mocks.repo.create).toHaveBeenCalledWith(
-        expect.objectContaining({ moneda: 'USD' }),
-      )
+      expect(mocks.repo.create).toHaveBeenCalledWith(expect.objectContaining({ moneda: 'USD' }))
     })
 
     it('should throw ValidationError when no active subscription exists', async () => {
       mocks.suscripcionProvider.findActiveByCompany.mockResolvedValue(null)
 
-      expect(service.createMyOrden('company-1', ownerInput)).rejects.toBeInstanceOf(
-        ValidationError,
-      )
+      expect(service.createMyOrden('company-1', ownerInput)).rejects.toBeInstanceOf(ValidationError)
     })
 
     it('should throw ValidationError when subscription status is not TRIAL or ACTIVA', async () => {
@@ -355,9 +351,7 @@ describe('OrdenService', () => {
         suscripcionStatus: SuscripcionStatus.SUSPENDIDA,
       })
 
-      expect(service.createMyOrden('company-1', ownerInput)).rejects.toBeInstanceOf(
-        ValidationError,
-      )
+      expect(service.createMyOrden('company-1', ownerInput)).rejects.toBeInstanceOf(ValidationError)
     })
 
     it('should throw ValidationError on duplicate PAGADA order for same period', async () => {
@@ -365,9 +359,7 @@ describe('OrdenService', () => {
         createMockOrden({ ordenStatus: OrdenStatus.PAGADA }),
       )
 
-      expect(service.createMyOrden('company-1', ownerInput)).rejects.toBeInstanceOf(
-        ValidationError,
-      )
+      expect(service.createMyOrden('company-1', ownerInput)).rejects.toBeInstanceOf(ValidationError)
     })
   })
 
@@ -385,9 +377,7 @@ describe('OrdenService', () => {
     it('should throw NotFoundError when order belongs to a different company', async () => {
       mocks.repo.findById.mockResolvedValue(createMockWithDetails())
 
-      expect(service.getMyOrdenById('company-OTHER', 'ord-1')).rejects.toBeInstanceOf(
-        NotFoundError,
-      )
+      expect(service.getMyOrdenById('company-OTHER', 'ord-1')).rejects.toBeInstanceOf(NotFoundError)
     })
 
     it('should throw NotFoundError when order does not exist', async () => {
@@ -422,14 +412,13 @@ describe('OrdenService', () => {
     it('should use provided pagadaEn when supplied', async () => {
       const pagadaEn = new Date('2025-01-15')
       mocks.repo.findById.mockResolvedValue(createMockWithDetails())
-      mocks.repo.update.mockResolvedValue(createMockWithDetails({ ordenStatus: OrdenStatus.PAGADA }))
+      mocks.repo.update.mockResolvedValue(
+        createMockWithDetails({ ordenStatus: OrdenStatus.PAGADA }),
+      )
 
       await service.payMyOrden('company-1', 'ord-1', { pagadaEn })
 
-      expect(mocks.repo.update).toHaveBeenCalledWith(
-        'ord-1',
-        expect.objectContaining({ pagadaEn }),
-      )
+      expect(mocks.repo.update).toHaveBeenCalledWith('ord-1', expect.objectContaining({ pagadaEn }))
     })
 
     it('should throw ValidationError when order is not PENDIENTE', async () => {
@@ -452,9 +441,7 @@ describe('OrdenService', () => {
     it('should throw NotFoundError when order belongs to a different company', async () => {
       mocks.repo.findById.mockResolvedValue(createMockWithDetails())
 
-      expect(service.payMyOrden('company-OTHER', 'ord-1', {})).rejects.toBeInstanceOf(
-        NotFoundError,
-      )
+      expect(service.payMyOrden('company-OTHER', 'ord-1', {})).rejects.toBeInstanceOf(NotFoundError)
     })
   })
 })

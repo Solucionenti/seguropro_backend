@@ -56,6 +56,16 @@ export class PrismaUserRepository implements UserRepository {
     })
   }
 
+  async findMasterAdminOrOwnerByEmail(email: string): Promise<User | null> {
+    return this.prisma.user.findFirst({
+      where: {
+        email,
+        role: { in: [UserRole.MASTER_ADMIN, UserRole.OWNER] },
+        status: ResourceStatus.ACTIVE,
+      },
+    })
+  }
+
   async findCompaniesByEmail(
     email: string,
   ): Promise<{ companyId: string; nombreComercial: string | null }[]> {

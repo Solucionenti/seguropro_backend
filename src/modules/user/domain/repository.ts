@@ -15,6 +15,7 @@ export interface UserRepository {
   ): Promise<{ data: User[]; total: number }>
   findByEmailAndCompany(email: string, companyId: string): Promise<User | null>
   findMasterAdminByEmail(email: string): Promise<User | null>
+  findMasterAdminOrOwnerByEmail(email: string): Promise<User | null>
   findCompaniesByEmail(
     email: string,
   ): Promise<{ companyId: string; nombreComercial: string | null }[]>

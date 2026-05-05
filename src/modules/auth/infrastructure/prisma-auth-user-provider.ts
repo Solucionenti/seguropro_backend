@@ -19,6 +19,17 @@ export class PrismaAuthUserProvider implements AuthUserProvider {
     })
   }
 
+  async findMasterAdminOrOwnerByEmail(email: string): Promise<AuthUser | null> {
+    return this.prisma.user.findFirst({
+      where: {
+        email,
+        role: { in: [UserRole.MASTER_ADMIN, UserRole.OWNER] },
+        status: ResourceStatus.ACTIVE,
+      },
+      omit: { passwordHash: false },
+    })
+  }
+
   async findCompaniesByEmail(
     email: string,
   ): Promise<{ companyId: string; nombreComercial: string | null }[]> {

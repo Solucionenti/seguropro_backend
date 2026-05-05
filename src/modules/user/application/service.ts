@@ -71,9 +71,9 @@ export class UserService implements IUserService {
   }
 
   async createOwner(input: CreateOwnerInput): Promise<UserWithCompany> {
-    const existing = await this.repo.findOwnerByEmail(input.email)
+    const existing = await this.repo.findMasterAdminOrOwnerByEmail(input.email)
     if (existing) {
-      throw new ValidationError('An OWNER with this email already exists')
+      throw new ValidationError('An user admin or owner with this email already exists')
     }
 
     const passwordHash = await this.passwordHasher.hash(input.password)

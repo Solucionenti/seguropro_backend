@@ -73,7 +73,7 @@ export const ordenController = new Elysia({ name: '@app/modules/orden', prefix: 
       detail: {
         tags: ['Ordenes'],
         summary: 'List my orders',
-        description: 'Returns paginated active orders for the authenticated owner\'s company.',
+        description: "Returns paginated active orders for the authenticated owner's company.",
       },
     },
   )
@@ -108,7 +108,7 @@ export const ordenController = new Elysia({ name: '@app/modules/orden', prefix: 
       detail: {
         tags: ['Ordenes'],
         summary: 'Get my order detail',
-        description: 'Returns full detail of an order belonging to the owner\'s company.',
+        description: "Returns full detail of an order belonging to the owner's company.",
       },
     },
   )
@@ -127,7 +127,7 @@ export const ordenController = new Elysia({ name: '@app/modules/orden', prefix: 
         tags: ['Ordenes'],
         summary: 'Pay an order',
         description:
-          'Marks a PENDIENTE order as PAGADA and updates the subscription\'s next payment date.',
+          "Marks a PENDIENTE order as PAGADA and updates the subscription's next payment date.",
       },
     },
   )

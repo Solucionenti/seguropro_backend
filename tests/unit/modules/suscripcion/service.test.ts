@@ -303,9 +303,11 @@ describe('SuscripcionService', () => {
 
       await service.createMySubscription('company-1', { planId: 'plan-1' })
 
-      const callArg = mocks.repo.create.mock.calls[0]![0] as { fechaInicio: Date; fechaProximoPago: Date }
-      const diff =
-        callArg.fechaProximoPago.getFullYear() - callArg.fechaInicio.getFullYear()
+      const callArg = mocks.repo.create.mock.calls[0]![0] as {
+        fechaInicio: Date
+        fechaProximoPago: Date
+      }
+      const diff = callArg.fechaProximoPago.getFullYear() - callArg.fechaInicio.getFullYear()
       expect(diff).toBe(1)
     })
 

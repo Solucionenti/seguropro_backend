@@ -66,7 +66,7 @@ export const suscripcionController = new Elysia({
       detail: {
         tags: ['Suscripciones'],
         summary: 'Get my active subscription',
-        description: 'Returns the active subscription for the authenticated owner\'s company.',
+        description: "Returns the active subscription for the authenticated owner's company.",
       },
     },
   )
@@ -84,7 +84,7 @@ export const suscripcionController = new Elysia({
         tags: ['Suscripciones'],
         summary: 'Subscribe to a plan',
         description:
-          'Creates a new subscription for the owner\'s company. Fails if an active subscription already exists.',
+          "Creates a new subscription for the owner's company. Fails if an active subscription already exists.",
       },
     },
   )
@@ -101,7 +101,7 @@ export const suscripcionController = new Elysia({
         tags: ['Suscripciones'],
         summary: 'Cancel my subscription',
         description:
-          'Cancels the active subscription for the owner\'s company. Sets status to CANCELADA and disables automatic renewal.',
+          "Cancels the active subscription for the owner's company. Sets status to CANCELADA and disables automatic renewal.",
       },
     },
   )
