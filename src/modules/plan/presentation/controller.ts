@@ -67,7 +67,7 @@ export const planController = new Elysia({ name: '@app/modules/plan', prefix: '/
   )
 
   .delete(
-    '/:id',
+    '/deactivate/:id',
     async ({ params, planService, jsonOkNoData }) => {
       await planService.deactivate(params.id)
       return jsonOkNoData('Plan deactivated successfully')
