@@ -49,6 +49,7 @@ export class PrismaPlanRepository implements PlanRepository {
         descripcion: input.descripcion ?? null,
         limiteAlmacenamientoGB: input.limiteAlmacenamientoGB ?? null,
         features: input.features ?? undefined,
+        active: input.active ?? true,
       },
     })
   }

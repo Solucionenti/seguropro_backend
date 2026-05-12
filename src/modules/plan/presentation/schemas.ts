@@ -15,6 +15,7 @@ export const createPlanSchema = z.object({
   limiteUsuarios: z.number().int().positive(),
   limiteAlmacenamientoGB: z.number().positive().optional(),
   features: z.array(z.string()).optional(),
+  active: z.coerce.boolean().optional(),
 })
 
 export const updatePlanSchema = z.object({
@@ -25,4 +26,5 @@ export const updatePlanSchema = z.object({
   limiteUsuarios: z.number().int().positive().optional(),
   limiteAlmacenamientoGB: z.number().positive().optional(),
   features: z.array(z.string()).optional(),
+  active: z.coerce.boolean().optional(),
 })

@@ -64,6 +64,7 @@ function createMocks() {
     createOwnerWithCompany: mock(() => Promise.resolve(createMockOwnerWithCompany())),
     update: mock(() => Promise.resolve(createMockUser())),
     softDelete: mock(() => Promise.resolve()),
+    findMasterAdminOrOwnerByEmail: mock(() => Promise.resolve(null)),
   }
 
   const passwordHasher: Mocked<PasswordHasher> = {
@@ -251,7 +252,9 @@ describe('UserService', () => {
     })
 
     it('should throw ValidationError when owner email already exists', async () => {
-      mocks.repo.findOwnerByEmail.mockResolvedValue(createMockUser({ role: UserRole.OWNER }))
+      mocks.repo.findMasterAdminOrOwnerByEmail.mockResolvedValue(
+        createMockUser({ role: UserRole.OWNER }),
+      )
 
       expect(
         service.createOwner({

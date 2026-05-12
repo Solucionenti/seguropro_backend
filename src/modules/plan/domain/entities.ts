@@ -22,6 +22,7 @@ export type CreatePlanInput = Pick<
   descripcion?: string | null
   limiteAlmacenamientoGB?: number | null
   features?: string[]
+  active?: boolean
 }
 
 export type UpdatePlanInput = Partial<
@@ -33,6 +34,7 @@ export type UpdatePlanInput = Partial<
     | 'periodicidad'
     | 'limiteUsuarios'
     | 'limiteAlmacenamientoGB'
+    | 'active'
   >
 > & {
   features?: string[]

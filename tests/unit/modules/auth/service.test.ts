@@ -35,6 +35,7 @@ function createMocks() {
     findMasterAdminByEmail: mock(() => Promise.resolve(null)),
     findCompaniesByEmail: mock(() => Promise.resolve([])),
     updateLastLogin: mock(() => Promise.resolve()),
+    findMasterAdminOrOwnerByEmail: mock(() => Promise.resolve(null)),
   }
 
   const passwordHasher: Mocked<PasswordHasher> = {
@@ -94,7 +95,7 @@ describe('AuthService', () => {
         role: UserRole.MASTER_ADMIN,
         companyId: null,
       })
-      mocks.authUserProvider.findMasterAdminByEmail.mockResolvedValue(masterAdmin)
+      mocks.authUserProvider.findMasterAdminOrOwnerByEmail.mockResolvedValue(masterAdmin)
 
       const result = await authService.login({
         email: 'admin@test.com',
@@ -103,7 +104,9 @@ describe('AuthService', () => {
 
       expect(result.user.role).toBe(UserRole.MASTER_ADMIN)
       expect(result.user.companyId).toBeNull()
-      expect(mocks.authUserProvider.findMasterAdminByEmail).toHaveBeenCalledWith('admin@test.com')
+      expect(mocks.authUserProvider.findMasterAdminOrOwnerByEmail).toHaveBeenCalledWith(
+        'admin@test.com',
+      )
       expect(mocks.authUserProvider.findByEmailAndCompany).not.toHaveBeenCalled()
     })
 
