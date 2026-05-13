@@ -89,6 +89,27 @@ export const suscripcionController = new Elysia({
     },
   )
 
+  .post(
+    '/mi-suscripcion-con-orden',
+    async ({ companyId, body, suscripcionService, jsonOk }) => {
+      const suscripcion = await suscripcionService.createMySubscriptionWithOrder(
+        companyId as string,
+        body,
+      )
+      return jsonOk(suscripcion, 'Subscription created successfully')
+    },
+    {
+      body: createOwnerSuscripcionSchema,
+      withRole: UserRole.OWNER,
+      detail: {
+        tags: ['Suscripciones'],
+        summary: 'Subscribe to a plan with order',
+        description:
+          "Creates a new subscription for the owner's company. Fails if an active subscription already exists.",
+      },
+    },
+  )
+
   .delete(
     '/mi-suscripcion',
     async ({ companyId, suscripcionService, jsonOkNoData }) => {

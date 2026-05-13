@@ -22,6 +22,7 @@ export interface SuscripcionRepository {
   findActiveByCompany(companyId: string): Promise<Suscripcion | null>
   findActiveByCompanyWithDetails(companyId: string): Promise<SuscripcionWithDetails | null>
   create(input: CreateSuscripcionInput): Promise<SuscripcionWithDetails>
+  createSuscipcionWithOrden(input: CreateSuscripcionInput): Promise<SuscripcionWithDetails>
   update(id: string, input: UpdateSuscripcionInput): Promise<SuscripcionWithDetails>
   deactivateByCompany(companyId: string, excludeId?: string): Promise<void>
   deactivate(id: string): Promise<void>

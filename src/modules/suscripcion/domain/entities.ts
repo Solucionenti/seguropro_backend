@@ -1,4 +1,5 @@
 import type { SuscripcionStatus } from '@gen/enums'
+import type { OrdenModel } from '@gen/models'
 import type { CompanyModel } from '@gen/models/Company'
 import type { PlanModel } from '@gen/models/Plan'
 import type { SuscripcionModel } from '@gen/models/Suscripcion'
@@ -22,9 +23,12 @@ export type CompanyBasicInfo = Pick<CompanyModel, 'id' | 'nombreComercial' | 'ra
 
 export type PlanBasicInfo = Pick<PlanModel, 'id' | 'nombre' | 'precio' | 'periodicidad'>
 
+export type OrdenBasicInfo = Pick<OrdenModel, 'id'>
+
 export interface SuscripcionWithDetails extends Suscripcion {
   company: CompanyBasicInfo
   plan: PlanBasicInfo
+  ordenes?: OrdenBasicInfo[]
 }
 
 export type CreateSuscripcionInput = Pick<

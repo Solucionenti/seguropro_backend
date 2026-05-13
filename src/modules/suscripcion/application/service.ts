@@ -138,4 +138,33 @@ export class SuscripcionService implements ISuscripcionService {
       renovacionAutomatica: false,
     })
   }
+
+  async createMySubscriptionWithOrder(
+    companyId: string,
+    input: CreateOwnerSuscripcionInput,
+  ): Promise<SuscripcionWithDetails> {
+    const existing = await this.repo.findActiveByCompany(companyId)
+    if (existing) {
+      throw new ValidationError('Company already has an active subscription')
+    }
+
+    const plan = await this.planProvider.findActiveById(input.planId)
+    if (!plan) {
+      throw new ValidationError(`Plan with id "${input.planId}" not found or inactive`)
+    }
+
+    const fechaInicio = new Date()
+    const fechaProximoPago = addPeriod(fechaInicio, plan.periodicidad)
+    const suscripcionStatus = input.suscripcionStatus ?? SuscripcionStatus.ACTIVA
+
+    return this.repo.createSuscipcionWithOrden({
+      companyId,
+      planId: input.planId,
+      suscripcionStatus,
+      active: true,
+      fechaInicio,
+      fechaProximoPago,
+      renovacionAutomatica: input.renovacionAutomatica ?? true,
+    })
+  }
 }

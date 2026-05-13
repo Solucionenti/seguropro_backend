@@ -63,6 +63,7 @@ function createMocks() {
     update: mock(() => Promise.resolve(createMockWithDetails())),
     deactivateByCompany: mock(() => Promise.resolve()),
     deactivate: mock(() => Promise.resolve()),
+    createSuscipcionWithOrden: mock(() => Promise.resolve(createMockWithDetails())),
   }
   const companyProvider: Mocked<CompanyProvider> = {
     findActiveById: mock(() => Promise.resolve(company)),
@@ -303,7 +304,7 @@ describe('SuscripcionService', () => {
 
       await service.createMySubscription('company-1', { planId: 'plan-1' })
 
-      const callArg = mocks.repo.create.mock.calls[0]![0] as {
+      const callArg = mocks.repo.create.mock.calls[0]?.[0] as {
         fechaInicio: Date
         fechaProximoPago: Date
       }
@@ -359,7 +360,7 @@ describe('SuscripcionService', () => {
           renovacionAutomatica: false,
         }),
       )
-      const callArg = mocks.repo.update.mock.calls[0]![1] as { fechaFin: unknown }
+      const callArg = mocks.repo.update.mock.calls[0]?.[1] as { fechaFin: unknown }
       expect(callArg.fechaFin).toBeInstanceOf(Date)
     })
 

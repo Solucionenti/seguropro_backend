@@ -169,4 +169,42 @@ export class PrismaSuscripcionRepository implements SuscripcionRepository {
       data: { active: false },
     })
   }
+
+  async createSuscipcionWithOrden(input: CreateSuscripcionInput): Promise<SuscripcionWithDetails> {
+    const existingSuscripcion = await this.prisma.suscripcion.findFirst({
+      where: { companyId: input.companyId, active: true, status: ResourceStatus.ACTIVE },
+    })
+
+    if (existingSuscripcion) {
+      throw new Error('Company already has an active subscription')
+    }
+
+    const suscriptionCreated = await this.prisma.suscripcion.create({
+      data: {
+        companyId: input.companyId,
+        planId: input.planId,
+        suscripcionStatus: input.suscripcionStatus,
+        active: false,
+        fechaInicio: input.fechaInicio,
+        fechaFin: input.fechaFin ?? null,
+        fechaProximoPago: input.fechaProximoPago,
+        renovacionAutomatica: input.renovacionAutomatica ?? true,
+      },
+      include: includeDetails,
+    })
+
+    const ordenCreated = await this.prisma.orden.create({
+      data: {
+        cicloFin: input.fechaProximoPago,
+        cicloInicio: input.fechaInicio,
+        monto: suscriptionCreated.plan.precio,
+        suscripcionId: suscriptionCreated.id,
+      },
+    })
+
+    return {
+      ...suscriptionCreated,
+      ordenes: [ordenCreated],
+    }
+  }
 }
