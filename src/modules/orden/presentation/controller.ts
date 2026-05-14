@@ -132,6 +132,25 @@ export const ordenController = new Elysia({ name: '@app/modules/orden', prefix: 
     },
   )
 
+  .patch(
+    '/mis-ordenes/:id/pagar-primera',
+    async ({ companyId, params, body, ordenService, jsonOk }) => {
+      const orden = await ordenService.payMyFirstOrden(companyId as string, params.id, body)
+      return jsonOk(orden, 'Order paid successfully')
+    },
+    {
+      params: idParams,
+      body: payOrdenSchema,
+      withRole: UserRole.OWNER,
+      detail: {
+        tags: ['Ordenes'],
+        summary: 'Pay an order',
+        description:
+          "Marks a PENDIENTE order as PAGADA and updates the subscription's next payment date.",
+      },
+    },
+  )
+
   // ── MASTER_ADMIN detail/edit routes ──────────────────
 
   .get(

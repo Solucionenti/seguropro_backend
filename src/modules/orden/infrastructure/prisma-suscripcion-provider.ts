@@ -30,4 +30,11 @@ export class PrismaSuscripcionProvider implements SuscripcionProvider {
       data: { fechaProximoPago: fecha },
     })
   }
+
+  async updateFirstFechaProximoPago(id: string, fecha: Date): Promise<void> {
+    await this.prisma.suscripcion.update({
+      where: { id },
+      data: { active: true, suscripcionStatus: 'ACTIVA', fechaProximoPago: fecha },
+    })
+  }
 }

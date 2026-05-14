@@ -163,4 +163,37 @@ export class OrdenService implements IOrdenService {
 
     return updated
   }
+
+  async payMyFirstOrden(
+    companyId: string,
+    id: string,
+    input: PayOrdenInput,
+  ): Promise<OrdenWithDetails> {
+    const orden = await this.getMyOrdenById(companyId, id)
+
+    if (orden.ordenStatus !== OrdenStatus.PENDIENTE) {
+      throw new ValidationError('Only PENDIENTE orders can be paid')
+    }
+
+    const duplicate = await this.repo.findPagadaByPeriod(
+      orden.suscripcionId,
+      orden.cicloInicio,
+      orden.cicloFin,
+    )
+    if (duplicate) {
+      throw new ValidationError('A PAGADA order already exists for this period')
+    }
+
+    const updated = await this.repo.update(id, {
+      ordenStatus: OrdenStatus.PAGADA,
+      pagadaEn: input.pagadaEn ?? new Date(),
+      proveedor: input.proveedor,
+      proveedorOrdenId: input.proveedorOrdenId,
+      proveedorPagoId: input.proveedorPagoId,
+    })
+
+    await this.suscripcionProvider.updateFirstFechaProximoPago(orden.suscripcionId, orden.cicloFin)
+
+    return updated
+  }
 }

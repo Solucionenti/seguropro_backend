@@ -26,4 +26,5 @@ export interface IOrdenService {
   createMyOrden(companyId: string, input: CreateOwnerOrdenInput): Promise<OrdenWithDetails>
   getMyOrdenById(companyId: string, id: string): Promise<OrdenWithDetails>
   payMyOrden(companyId: string, id: string, input: PayOrdenInput): Promise<OrdenWithDetails>
+  payMyFirstOrden(companyId: string, id: string, input: PayOrdenInput): Promise<OrdenWithDetails>
 }

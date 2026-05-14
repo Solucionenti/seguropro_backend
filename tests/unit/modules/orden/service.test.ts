@@ -78,6 +78,7 @@ function createMocks() {
     findById: mock(() => Promise.resolve({ id: 'sus-1', companyId: 'company-1' })),
     findActiveByCompany: mock(() => Promise.resolve(activeSuscripcion)),
     updateFechaProximoPago: mock(() => Promise.resolve()),
+    updateFirstFechaProximoPago: mock(() => Promise.resolve()),
   }
   return { repo, suscripcionProvider }
 }

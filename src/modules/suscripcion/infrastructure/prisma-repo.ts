@@ -190,7 +190,10 @@ export class PrismaSuscripcionRepository implements SuscripcionRepository {
         fechaProximoPago: input.fechaProximoPago,
         renovacionAutomatica: input.renovacionAutomatica ?? true,
       },
-      include: includeDetails,
+      include: {
+        plan: true,
+        company: true,
+      },
     })
 
     const ordenCreated = await this.prisma.orden.create({
