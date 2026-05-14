@@ -52,7 +52,14 @@ export class PrismaOrdenRepository implements OrdenRepository {
   async findById(id: string): Promise<OrdenWithDetails | null> {
     const row = await this.prisma.orden.findFirst({
       where: { id, status: ResourceStatus.ACTIVE },
-      include: { suscripcion: { select: suscripcionSelect } },
+      include: {
+        suscripcion: {
+          include: {
+            company: true,
+            plan: true,
+          },
+        },
+      },
     })
     return row
   }
