@@ -59,6 +59,7 @@ function createMocks() {
     findAllOwners: mock(() => Promise.resolve({ data: [], total: 0 })),
     findOwnerByEmail: mock(() => Promise.resolve(null)),
     findOwnerWithCompany: mock(() => Promise.resolve(null)),
+    findCompleteOwner: mock(() => Promise.resolve(null)),
     countActiveMasterAdmins: mock(() => Promise.resolve(1)),
     create: mock(() => Promise.resolve(createMockUser())),
     createOwnerWithCompany: mock(() => Promise.resolve(createMockOwnerWithCompany())),
@@ -276,7 +277,7 @@ describe('UserService', () => {
   describe('getOwner', () => {
     it('should return owner with company info', async () => {
       const owner = createMockOwnerWithCompany()
-      mocks.repo.findOwnerWithCompany.mockResolvedValue(owner)
+      mocks.repo.findCompleteOwner.mockResolvedValue(owner)
 
       const result = await service.getOwner('user-1')
 

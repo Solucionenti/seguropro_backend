@@ -19,6 +19,7 @@ export interface SuscripcionRepository {
     filters: SuscripcionFilters,
   ): Promise<{ data: SuscripcionWithDetails[]; total: number }>
   findById(id: string): Promise<SuscripcionWithDetails | null>
+  findCompleteById(id: string): Promise<SuscripcionWithDetails | null>
   findActiveByCompany(companyId: string): Promise<Suscripcion | null>
   findActiveByCompanyWithDetails(companyId: string): Promise<SuscripcionWithDetails | null>
   create(input: CreateSuscripcionInput): Promise<SuscripcionWithDetails>

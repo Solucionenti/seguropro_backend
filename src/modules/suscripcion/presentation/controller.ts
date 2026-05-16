@@ -132,7 +132,7 @@ export const suscripcionController = new Elysia({
   .get(
     '/:id',
     async ({ params, suscripcionService, jsonOk }) => {
-      const suscripcion = await suscripcionService.getById(params.id)
+      const suscripcion = await suscripcionService.getCompleteById(params.id)
       return jsonOk(suscripcion)
     },
     {

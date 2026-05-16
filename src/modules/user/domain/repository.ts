@@ -23,6 +23,7 @@ export interface UserRepository {
   findAllOwners(page: number, pageSize: number): Promise<{ data: UserWithCompany[]; total: number }>
   findOwnerByEmail(email: string): Promise<User | null>
   findOwnerWithCompany(id: string): Promise<UserWithCompany | null>
+  findCompleteOwner(id: string): Promise<UserWithCompany | null>
   countActiveMasterAdmins(): Promise<number>
   create(input: CreateUserInput): Promise<User>
   createOwnerWithCompany(

@@ -92,7 +92,7 @@ export class UserService implements IUserService {
   }
 
   async getOwner(id: string): Promise<UserWithCompany> {
-    const user = await this.repo.findOwnerWithCompany(id)
+    const user = await this.repo.findCompleteOwner(id)
     if (!user || user.role !== UserRole.OWNER) {
       throw new NotFoundError('Owner', id)
     }

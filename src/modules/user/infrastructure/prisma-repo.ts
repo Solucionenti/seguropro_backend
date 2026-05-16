@@ -17,6 +17,19 @@ const companySelect = {
   telefonoContacto: true,
 } as const
 
+const completeInfo = {
+  company: {
+    include: {
+      suscripciones: {
+        include: {
+          plan: true,
+          ordenes: true,
+        },
+      },
+    },
+  },
+} as const
+
 export class PrismaUserRepository implements UserRepository {
   constructor(private readonly prisma: AppPrismaClient) {}
 
@@ -132,6 +145,14 @@ export class PrismaUserRepository implements UserRepository {
     const user = await this.prisma.user.findFirst({
       where: { id, role: UserRole.OWNER, status: ResourceStatus.ACTIVE },
       include: { company: { select: companySelect } },
+    })
+    return user as UserWithCompany | null
+  }
+
+  async findCompleteOwner(id: string): Promise<UserWithCompany | null> {
+    const user = await this.prisma.user.findFirst({
+      where: { id, role: UserRole.OWNER, status: ResourceStatus.ACTIVE },
+      include: completeInfo,
     })
     return user as UserWithCompany | null
   }

@@ -75,6 +75,14 @@ export class SuscripcionService implements ISuscripcionService {
     return suscripcion
   }
 
+  async getCompleteById(id: string): Promise<SuscripcionWithDetails> {
+    const suscripcion = await this.repo.findCompleteById(id)
+    if (!suscripcion) {
+      throw new NotFoundError('Suscripcion', id)
+    }
+    return suscripcion
+  }
+
   async update(id: string, input: UpdateSuscripcionInput): Promise<SuscripcionWithDetails> {
     const existing = await this.getById(id)
 

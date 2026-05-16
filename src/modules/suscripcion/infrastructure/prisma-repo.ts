@@ -61,6 +61,18 @@ export class PrismaSuscripcionRepository implements SuscripcionRepository {
     return row
   }
 
+  async findCompleteById(id: string): Promise<SuscripcionWithDetails | null> {
+    const row = await this.prisma.suscripcion.findFirst({
+      where: { id, status: ResourceStatus.ACTIVE },
+      include: {
+        company: true,
+        ordenes: true,
+        plan: true,
+      },
+    })
+    return row
+  }
+
   async findActiveByCompany(companyId: string): Promise<Suscripcion | null> {
     return this.prisma.suscripcion.findFirst({
       where: { companyId, active: true, status: ResourceStatus.ACTIVE },
