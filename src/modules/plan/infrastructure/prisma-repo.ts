@@ -3,6 +3,10 @@ import type { AppPrismaClient } from '@/config/database'
 import type { CreatePlanInput, Plan, UpdatePlanInput } from '../domain/entities'
 import type { PlanRepository } from '../domain/repository'
 
+const completePlan = {
+  suscripciones: true,
+} as const
+
 export class PrismaPlanRepository implements PlanRepository {
   constructor(private readonly prisma: AppPrismaClient) {}
 
@@ -30,6 +34,13 @@ export class PrismaPlanRepository implements PlanRepository {
   async findById(id: string): Promise<Plan | null> {
     return this.prisma.plan.findFirst({
       where: { id, status: ResourceStatus.ACTIVE },
+    })
+  }
+
+  async findCompleteById(id: string): Promise<Plan | null> {
+    return this.prisma.plan.findFirst({
+      where: { id, status: ResourceStatus.ACTIVE },
+      include: completePlan,
     })
   }
 

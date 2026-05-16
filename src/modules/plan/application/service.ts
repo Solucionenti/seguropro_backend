@@ -31,6 +31,14 @@ export class PlanService implements IPlanService {
     return plan
   }
 
+  async getCompleteById(id: string): Promise<Plan> {
+    const plan = await this.repo.findCompleteById(id)
+    if (!plan) {
+      throw new NotFoundError('Plan', id)
+    }
+    return plan
+  }
+
   async getActiveById(id: string): Promise<Plan> {
     const plan = await this.getById(id)
     if (!plan.active) {

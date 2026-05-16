@@ -42,7 +42,7 @@ export const planController = new Elysia({ name: '@app/modules/plan', prefix: '/
       const plan =
         userRole === UserRole.OWNER
           ? await planService.getActiveById(params.id)
-          : await planService.getById(params.id)
+          : await planService.getCompleteById(params.id)
       return jsonOk(plan)
     },
     {

@@ -7,6 +7,7 @@ export interface PlanRepository {
     active?: boolean,
   ): Promise<{ data: Plan[]; total: number }>
   findById(id: string): Promise<Plan | null>
+  findCompleteById(id: string): Promise<Plan | null>
   findByNombre(nombre: string): Promise<Plan | null>
   create(input: CreatePlanInput): Promise<Plan>
   update(id: string, input: UpdatePlanInput): Promise<Plan>

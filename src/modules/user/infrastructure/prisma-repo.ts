@@ -25,6 +25,7 @@ const completeInfo = {
           plan: true,
           ordenes: true,
         },
+        where: { status: ResourceStatus.ACTIVE },
       },
     },
   },

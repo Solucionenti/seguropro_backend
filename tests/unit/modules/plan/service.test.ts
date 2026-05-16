@@ -33,6 +33,7 @@ function createMocks() {
   const repo: Mocked<PlanRepository> = {
     findAll: mock(() => Promise.resolve({ data: [], total: 0 })),
     findById: mock(() => Promise.resolve(null)),
+    findCompleteById: mock(() => Promise.resolve(null)),
     findByNombre: mock(() => Promise.resolve(null)),
     create: mock(() => Promise.resolve(createMockPlan())),
     update: mock(() => Promise.resolve(createMockPlan())),
