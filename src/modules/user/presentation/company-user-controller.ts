@@ -127,11 +127,7 @@ export const companyUserController = new Elysia({
       .delete(
         '/:id',
         async ({ companyId, params, userRole, companyUserService, jsonOkNoData }) => {
-          await companyUserService.deactivateCompanyUser(
-            companyId,
-            params.id,
-            userRole as UserRole,
-          )
+          await companyUserService.deactivateCompanyUser(companyId, params.id, userRole as UserRole)
           return jsonOkNoData('User deactivated successfully')
         },
         {

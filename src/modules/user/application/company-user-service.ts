@@ -34,15 +34,11 @@ export class CompanyUserService implements ICompanyUserService {
       throw new ValidationError('No active subscription found for this company')
     }
     if (!ACTIVE_SUBSCRIPTION_STATUSES.includes(planInfo.suscripcionStatus)) {
-      throw new ValidationError(
-        'Subscription must have status TRIAL or ACTIVA to manage users',
-      )
+      throw new ValidationError('Subscription must have status TRIAL or ACTIVA to manage users')
     }
     const count = await this.repo.countActiveCompanyUsers(companyId)
     if (count >= planInfo.limiteUsuarios) {
-      throw new ValidationError(
-        `User limit of ${planInfo.limiteUsuarios} reached for this plan`,
-      )
+      throw new ValidationError(`User limit of ${planInfo.limiteUsuarios} reached for this plan`)
     }
   }
 

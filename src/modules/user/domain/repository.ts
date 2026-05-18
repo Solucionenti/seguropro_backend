@@ -27,11 +27,7 @@ export interface UserRepository {
   findCompleteOwner(id: string): Promise<UserWithCompany | null>
   countActiveMasterAdmins(): Promise<number>
   countActiveCompanyUsers(companyId: string): Promise<number>
-  findCompanyUsers(
-    companyId: string,
-    pageable: Pageable,
-    roles: UserRole[],
-  ): Promise<Page<User>>
+  findCompanyUsers(companyId: string, pageable: Pageable, roles: UserRole[]): Promise<Page<User>>
   findCompanyUserById(companyId: string, id: string): Promise<UserWithDetalle | null>
   create(input: CreateUserInput): Promise<User>
   createOwnerWithCompany(

@@ -7,14 +7,7 @@ export interface User
   extends BaseEntity,
     Pick<
       UserModel,
-      | 'companyId'
-      | 'role'
-      | 'firstName'
-      | 'lastName'
-      | 'email'
-      | 'phone'
-      | 'lastLoginAt'
-      | 'active'
+      'companyId' | 'role' | 'firstName' | 'lastName' | 'email' | 'phone' | 'lastLoginAt' | 'active'
     > {}
 
 export interface DetalleCliente

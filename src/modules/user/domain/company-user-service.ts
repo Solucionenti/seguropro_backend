@@ -1,5 +1,5 @@
-import type { UserModel } from '@gen/models/User'
 import type { UserRole } from '@gen/enums'
+import type { UserModel } from '@gen/models/User'
 import type { Page, Pageable } from '@/shared/domain/pagination'
 import type {
   CreateDetalleClienteInput,
@@ -30,11 +30,7 @@ export interface ICompanyUserService {
   ): Promise<Page<User>>
   createAgent(companyId: string, input: CreateAgentInput): Promise<UserWithDetalle>
   createClient(companyId: string, input: CreateClientInput): Promise<UserWithDetalle>
-  getCompanyUser(
-    companyId: string,
-    id: string,
-    requestorRole: UserRole,
-  ): Promise<UserWithDetalle>
+  getCompanyUser(companyId: string, id: string, requestorRole: UserRole): Promise<UserWithDetalle>
   updateCompanyUser(
     companyId: string,
     id: string,

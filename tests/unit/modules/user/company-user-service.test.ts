@@ -117,20 +117,17 @@ describe('CompanyUserService', () => {
   describe('listCompanyUsers', () => {
     it('OWNER receives AGENT and CLIENT roles', async () => {
       await service.listCompanyUsers('company-1', UserRole.OWNER, defaultPageable)
-      expect(mocks.repo.findCompanyUsers).toHaveBeenCalledWith(
-        'company-1',
-        defaultPageable,
-        [UserRole.AGENT, UserRole.CLIENT],
-      )
+      expect(mocks.repo.findCompanyUsers).toHaveBeenCalledWith('company-1', defaultPageable, [
+        UserRole.AGENT,
+        UserRole.CLIENT,
+      ])
     })
 
     it('AGENT receives CLIENT role only', async () => {
       await service.listCompanyUsers('company-1', UserRole.AGENT, defaultPageable)
-      expect(mocks.repo.findCompanyUsers).toHaveBeenCalledWith(
-        'company-1',
-        defaultPageable,
-        [UserRole.CLIENT],
-      )
+      expect(mocks.repo.findCompanyUsers).toHaveBeenCalledWith('company-1', defaultPageable, [
+        UserRole.CLIENT,
+      ])
     })
   })
 
