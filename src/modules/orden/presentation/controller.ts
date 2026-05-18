@@ -12,6 +12,15 @@ import {
   updateOrdenSchema,
 } from './schemas'
 
+const ORDEN_SORT_FIELDS = [
+  'createdAt',
+  'updatedAt',
+  'cicloInicio',
+  'cicloFin',
+  'pagadaEn',
+  'monto',
+] as const
+
 export const ordenController = new Elysia({ name: '@app/modules/orden', prefix: '/ordenes' })
   .use(authRouter)
   .use(ordenServicePlugin)
@@ -20,17 +29,18 @@ export const ordenController = new Elysia({ name: '@app/modules/orden', prefix: 
 
   .get(
     '/',
-    async ({ query, ordenService, jsonPaginated }) => {
-      const { data, total } = await ordenService.list(query.page, query.pageSize, {
+    async ({ query, pageable, ordenService, jsonOk }) => {
+      const page = await ordenService.list(pageable, {
         companyId: query.companyId,
         ordenStatus: query.ordenStatus,
         cicloInicio: query.cicloInicio,
         cicloFin: query.cicloFin,
       })
-      return jsonPaginated(data, total, query.page, query.pageSize)
+      return jsonOk(page)
     },
     {
       query: listOrdenQuerySchema,
+      paginated: { sortFields: ORDEN_SORT_FIELDS },
       withRole: UserRole.MASTER_ADMIN,
       detail: { tags: ['Ordenes'], summary: 'List orders' },
     },
@@ -54,21 +64,17 @@ export const ordenController = new Elysia({ name: '@app/modules/orden', prefix: 
 
   .get(
     '/mis-ordenes',
-    async ({ companyId, query, ordenService, jsonPaginated }) => {
-      const { data, total } = await ordenService.listMyOrdenes(
-        companyId,
-        query.page,
-        query.pageSize,
-        {
-          ordenStatus: query.ordenStatus,
-          cicloInicio: query.cicloInicio,
-          cicloFin: query.cicloFin,
-        },
-      )
-      return jsonPaginated(data, total, query.page, query.pageSize)
+    async ({ companyId, query, pageable, ordenService, jsonOk }) => {
+      const page = await ordenService.listMyOrdenes(companyId, pageable, {
+        ordenStatus: query.ordenStatus,
+        cicloInicio: query.cicloInicio,
+        cicloFin: query.cicloFin,
+      })
+      return jsonOk(page)
     },
     {
       query: listOwnerOrdenQuerySchema,
+      paginated: { sortFields: ORDEN_SORT_FIELDS },
       requireCompany: true,
       withRole: UserRole.OWNER,
       detail: {

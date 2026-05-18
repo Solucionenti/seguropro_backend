@@ -4,8 +4,11 @@ import { AseguradoraService } from '@/modules/aseguradora/application/service'
 import type { Aseguradora } from '@/modules/aseguradora/domain/entities'
 import type { AseguradoraRepository } from '@/modules/aseguradora/domain/repository'
 import { NotFoundError } from '@/shared/domain/not-found-error'
+import { Page, Pageable } from '@/shared/domain/pagination'
 import { ValidationError } from '@/shared/domain/validation-error'
 import type { Mocked } from '../../../utils/mocked'
+
+const defaultPageable = new Pageable(1, 20)
 
 // ── Factories ────────────────────────────────────────────
 
@@ -27,7 +30,7 @@ function createMockAseguradora(overrides: Partial<Aseguradora> = {}): Asegurador
 
 function createMocks() {
   const repo: Mocked<AseguradoraRepository> = {
-    findAll: mock(() => Promise.resolve({ data: [], total: 0 })),
+    findAll: mock(() => Promise.resolve(Page.empty<Aseguradora>(defaultPageable))),
     findById: mock(() => Promise.resolve(null)),
     findByNombreAndCompany: mock(() => Promise.resolve(null)),
     create: mock(() => Promise.resolve(createMockAseguradora())),
@@ -50,20 +53,28 @@ describe('AseguradoraService', () => {
 
   describe('list', () => {
     it('should return paginated results for the company', async () => {
-      const data = [createMockAseguradora(), createMockAseguradora({ id: 'aseg-2', nombre: 'AXA' })]
-      mocks.repo.findAll.mockResolvedValue({ data, total: 2 })
+      const items = [
+        createMockAseguradora(),
+        createMockAseguradora({ id: 'aseg-2', nombre: 'AXA' }),
+      ]
+      mocks.repo.findAll.mockResolvedValue(Page.of(items, 2, defaultPageable))
 
-      const result = await service.list({ companyId: 'company-1', page: 1, pageSize: 20 })
+      const result = await service.list(defaultPageable, { companyId: 'company-1' })
 
       expect(result.total).toBe(2)
-      expect(result.data).toHaveLength(2)
-      expect(mocks.repo.findAll).toHaveBeenCalledWith('company-1', 1, 20, undefined)
+      expect(result.content).toHaveLength(2)
+      expect(mocks.repo.findAll).toHaveBeenCalledWith(defaultPageable, {
+        companyId: 'company-1',
+      })
     })
 
     it('should pass nombre search filter to repo', async () => {
-      await service.list({ companyId: 'company-1', page: 1, pageSize: 20, nombre: 'GNP' })
+      await service.list(defaultPageable, { companyId: 'company-1', nombre: 'GNP' })
 
-      expect(mocks.repo.findAll).toHaveBeenCalledWith('company-1', 1, 20, 'GNP')
+      expect(mocks.repo.findAll).toHaveBeenCalledWith(defaultPageable, {
+        companyId: 'company-1',
+        nombre: 'GNP',
+      })
     })
   })
 

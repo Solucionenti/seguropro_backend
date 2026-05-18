@@ -1,5 +1,6 @@
 import { OrdenStatus, ResourceStatus } from '@gen/enums'
 import type { AppPrismaClient } from '@/config/database'
+import { Page, type Pageable } from '@/shared/domain/pagination'
 import type {
   CreateOrdenInput,
   Orden,
@@ -23,11 +24,7 @@ const suscripcionSelect = {
 export class PrismaOrdenRepository implements OrdenRepository {
   constructor(private readonly prisma: AppPrismaClient) {}
 
-  async findAll(
-    page: number,
-    pageSize: number,
-    filters: OrdenFilters,
-  ): Promise<{ data: OrdenWithDetails[]; total: number }> {
+  async findAll(pageable: Pageable, filters: OrdenFilters = {}): Promise<Page<OrdenWithDetails>> {
     const where = {
       status: ResourceStatus.ACTIVE,
       ...(filters.ordenStatus && { ordenStatus: filters.ordenStatus }),
@@ -40,13 +37,13 @@ export class PrismaOrdenRepository implements OrdenRepository {
       this.prisma.orden.findMany({
         where,
         include: { suscripcion: { select: suscripcionSelect } },
-        skip: (page - 1) * pageSize,
-        take: pageSize,
-        orderBy: { createdAt: 'desc' },
+        skip: pageable.skip,
+        take: pageable.take,
+        orderBy: pageable.orderBy,
       }),
       this.prisma.orden.count({ where }),
     ])
-    return { data: data, total }
+    return Page.of(data, total, pageable)
   }
 
   async findById(id: string): Promise<OrdenWithDetails | null> {

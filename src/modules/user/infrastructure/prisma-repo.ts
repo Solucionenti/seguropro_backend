@@ -1,5 +1,6 @@
 import { ResourceStatus, UserRole } from '@gen/enums'
 import type { AppPrismaClient } from '@/config/database'
+import { Page, type Pageable } from '@/shared/domain/pagination'
 import type {
   CompanyInput,
   CreateUserInput,
@@ -40,22 +41,18 @@ export class PrismaUserRepository implements UserRepository {
     })
   }
 
-  async findByCompanyId(
-    companyId: string,
-    page: number,
-    pageSize: number,
-  ): Promise<{ data: User[]; total: number }> {
+  async findByCompanyId(companyId: string, pageable: Pageable): Promise<Page<User>> {
     const where = { companyId, status: ResourceStatus.ACTIVE }
     const [data, total] = await Promise.all([
       this.prisma.user.findMany({
         where,
-        skip: (page - 1) * pageSize,
-        take: pageSize,
-        orderBy: { createdAt: 'desc' },
+        skip: pageable.skip,
+        take: pageable.take,
+        orderBy: pageable.orderBy,
       }),
       this.prisma.user.count({ where }),
     ])
-    return { data, total }
+    return Page.of(data, total, pageable)
   }
 
   async findByEmailAndCompany(email: string, companyId: string): Promise<User | null> {
@@ -101,39 +98,33 @@ export class PrismaUserRepository implements UserRepository {
       }))
   }
 
-  async findAllMasterAdmins(
-    page: number,
-    pageSize: number,
-  ): Promise<{ data: User[]; total: number }> {
+  async findAllMasterAdmins(pageable: Pageable): Promise<Page<User>> {
     const where = { role: UserRole.MASTER_ADMIN, status: ResourceStatus.ACTIVE }
     const [data, total] = await Promise.all([
       this.prisma.user.findMany({
         where,
-        skip: (page - 1) * pageSize,
-        take: pageSize,
-        orderBy: { createdAt: 'desc' },
+        skip: pageable.skip,
+        take: pageable.take,
+        orderBy: pageable.orderBy,
       }),
       this.prisma.user.count({ where }),
     ])
-    return { data, total }
+    return Page.of(data, total, pageable)
   }
 
-  async findAllOwners(
-    page: number,
-    pageSize: number,
-  ): Promise<{ data: UserWithCompany[]; total: number }> {
+  async findAllOwners(pageable: Pageable): Promise<Page<UserWithCompany>> {
     const where = { role: UserRole.OWNER, status: ResourceStatus.ACTIVE }
     const [data, total] = await Promise.all([
       this.prisma.user.findMany({
         where,
-        skip: (page - 1) * pageSize,
-        take: pageSize,
-        orderBy: { createdAt: 'desc' },
+        skip: pageable.skip,
+        take: pageable.take,
+        orderBy: pageable.orderBy,
         include: { company: { select: companySelect } },
       }),
       this.prisma.user.count({ where }),
     ])
-    return { data: data as UserWithCompany[], total }
+    return Page.of(data as UserWithCompany[], total, pageable)
   }
 
   async findOwnerByEmail(email: string): Promise<User | null> {

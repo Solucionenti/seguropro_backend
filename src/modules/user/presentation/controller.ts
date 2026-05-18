@@ -2,7 +2,7 @@ import { UserRole } from '@gen/enums'
 import { Elysia } from 'elysia'
 import { userServicePlugin } from '@/config/services'
 import { authRouter } from '@/shared/routers/auth-router'
-import { idParams } from '@/shared/utils/pagination'
+import { idParams, pageableSchema } from '@/shared/utils/pagination'
 import {
   createAdminSchema,
   createOwnerSchema,
@@ -10,6 +10,8 @@ import {
   updateOwnerSchema,
   updateProfileSchema,
 } from './schemas'
+
+const USER_SORT_FIELDS = ['createdAt', 'updatedAt', 'firstName', 'lastName', 'email'] as const
 
 export const userController = new Elysia({ name: '@app/modules/user', prefix: '/users' })
   .use(authRouter)
@@ -21,12 +23,13 @@ export const userController = new Elysia({ name: '@app/modules/user', prefix: '/
     app
       .get(
         '/',
-        async ({ page, pageSize, userService, jsonPaginated }) => {
-          const { data, total } = await userService.listAdmins(page, pageSize)
-          return jsonPaginated(data, total, page, pageSize)
+        async ({ pageable, userService, jsonOk }) => {
+          const page = await userService.listAdmins(pageable)
+          return jsonOk(page)
         },
         {
-          paginated: true,
+          query: pageableSchema,
+          paginated: { sortFields: USER_SORT_FIELDS },
           withRole: UserRole.MASTER_ADMIN,
           detail: {
             tags: ['Admin Users'],
@@ -110,12 +113,13 @@ export const userController = new Elysia({ name: '@app/modules/user', prefix: '/
     app
       .get(
         '/',
-        async ({ page, pageSize, userService, jsonPaginated }) => {
-          const { data, total } = await userService.listOwners(page, pageSize)
-          return jsonPaginated(data, total, page, pageSize)
+        async ({ pageable, userService, jsonOk }) => {
+          const page = await userService.listOwners(pageable)
+          return jsonOk(page)
         },
         {
-          paginated: true,
+          query: pageableSchema,
+          paginated: { sortFields: USER_SORT_FIELDS },
           withRole: UserRole.MASTER_ADMIN,
           detail: {
             tags: ['Owner Users'],

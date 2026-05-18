@@ -1,19 +1,20 @@
 import { NotFoundError } from '@/shared/domain/not-found-error'
+import type { Page, Pageable } from '@/shared/domain/pagination'
 import { ValidationError } from '@/shared/domain/validation-error'
 import type { Aseguradora } from '../domain/entities'
 import type { AseguradoraRepository } from '../domain/repository'
 import type {
   CreateAseguradoraServiceInput,
   IAseguradoraService,
-  ListAseguradorasInput,
+  ListAseguradorasFilters,
   UpdateAseguradoraServiceInput,
 } from '../domain/service'
 
 export class AseguradoraService implements IAseguradoraService {
   constructor(private readonly repo: AseguradoraRepository) {}
 
-  async list(input: ListAseguradorasInput): Promise<{ data: Aseguradora[]; total: number }> {
-    return this.repo.findAll(input.companyId, input.page, input.pageSize, input.nombre)
+  async list(pageable: Pageable, filters: ListAseguradorasFilters): Promise<Page<Aseguradora>> {
+    return this.repo.findAll(pageable, filters)
   }
 
   async create(input: CreateAseguradoraServiceInput): Promise<Aseguradora> {

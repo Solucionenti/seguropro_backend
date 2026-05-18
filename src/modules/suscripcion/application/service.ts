@@ -1,5 +1,6 @@
 import { Periodicidad, SuscripcionStatus } from '@gen/enums'
 import { NotFoundError } from '@/shared/domain/not-found-error'
+import type { Page, Pageable } from '@/shared/domain/pagination'
 import { ValidationError } from '@/shared/domain/validation-error'
 import type { CompanyProvider } from '../domain/company-provider'
 import type {
@@ -41,11 +42,10 @@ export class SuscripcionService implements ISuscripcionService {
   ) {}
 
   async list(
-    page: number,
-    pageSize: number,
+    pageable: Pageable,
     filters: SuscripcionFilters,
-  ): Promise<{ data: SuscripcionWithDetails[]; total: number }> {
-    return this.repo.findAll(page, pageSize, filters)
+  ): Promise<Page<SuscripcionWithDetails>> {
+    return this.repo.findAll(pageable, filters)
   }
 
   async create(input: CreateSuscripcionInput): Promise<SuscripcionWithDetails> {

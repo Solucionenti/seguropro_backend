@@ -1,18 +1,15 @@
 import { NotFoundError } from '@/shared/domain/not-found-error'
+import type { Page, Pageable } from '@/shared/domain/pagination'
 import { ValidationError } from '@/shared/domain/validation-error'
 import type { CreatePlanInput, Plan, UpdatePlanInput } from '../domain/entities'
-import type { PlanRepository } from '../domain/repository'
+import type { PlanFilters, PlanRepository } from '../domain/repository'
 import type { IPlanService } from '../domain/service'
 
 export class PlanService implements IPlanService {
   constructor(private readonly repo: PlanRepository) {}
 
-  async list(
-    page: number,
-    pageSize: number,
-    active?: boolean,
-  ): Promise<{ data: Plan[]; total: number }> {
-    return this.repo.findAll(page, pageSize, active)
+  async list(pageable: Pageable, filters?: PlanFilters): Promise<Page<Plan>> {
+    return this.repo.findAll(pageable, filters)
   }
 
   async create(input: CreatePlanInput): Promise<Plan> {

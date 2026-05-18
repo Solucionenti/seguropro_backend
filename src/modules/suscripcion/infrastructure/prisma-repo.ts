@@ -1,5 +1,6 @@
 import { ResourceStatus } from '@gen/enums'
 import type { AppPrismaClient } from '@/config/database'
+import { Page, type Pageable } from '@/shared/domain/pagination'
 import type {
   CreateSuscripcionInput,
   Suscripcion,
@@ -30,10 +31,9 @@ export class PrismaSuscripcionRepository implements SuscripcionRepository {
   constructor(private readonly prisma: AppPrismaClient) {}
 
   async findAll(
-    page: number,
-    pageSize: number,
-    filters: SuscripcionFilters,
-  ): Promise<{ data: SuscripcionWithDetails[]; total: number }> {
+    pageable: Pageable,
+    filters: SuscripcionFilters = {},
+  ): Promise<Page<SuscripcionWithDetails>> {
     const where = {
       status: ResourceStatus.ACTIVE,
       ...(filters.companyId && { companyId: filters.companyId }),
@@ -44,13 +44,13 @@ export class PrismaSuscripcionRepository implements SuscripcionRepository {
       this.prisma.suscripcion.findMany({
         where,
         include: includeDetails,
-        skip: (page - 1) * pageSize,
-        take: pageSize,
-        orderBy: { createdAt: 'desc' },
+        skip: pageable.skip,
+        take: pageable.take,
+        orderBy: pageable.orderBy,
       }),
       this.prisma.suscripcion.count({ where }),
     ])
-    return { data: data, total }
+    return Page.of(data, total, pageable)
   }
 
   async findById(id: string): Promise<SuscripcionWithDetails | null> {

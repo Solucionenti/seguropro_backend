@@ -1,4 +1,5 @@
 import type { SuscripcionStatus } from '@gen/enums'
+import type { Page, Pageable } from '@/shared/domain/pagination'
 import type {
   CreateSuscripcionInput,
   Suscripcion,
@@ -13,11 +14,7 @@ export interface SuscripcionFilters {
 }
 
 export interface SuscripcionRepository {
-  findAll(
-    page: number,
-    pageSize: number,
-    filters: SuscripcionFilters,
-  ): Promise<{ data: SuscripcionWithDetails[]; total: number }>
+  findAll(pageable: Pageable, filters?: SuscripcionFilters): Promise<Page<SuscripcionWithDetails>>
   findById(id: string): Promise<SuscripcionWithDetails | null>
   findCompleteById(id: string): Promise<SuscripcionWithDetails | null>
   findActiveByCompany(companyId: string): Promise<Suscripcion | null>

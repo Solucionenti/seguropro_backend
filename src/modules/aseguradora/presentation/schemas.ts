@@ -1,5 +1,5 @@
 import { z } from 'zod'
-import { paginationQuery } from '@/shared/utils/pagination'
+import { listQuery } from '@/shared/utils/pagination'
 
 export const createAseguradoraSchema = z.object({
   nombre: z.string().min(1, 'Nombre is required').max(200),
@@ -11,6 +11,6 @@ export const updateAseguradoraSchema = z.object({
   descripcion: z.string().max(1000).nullable().optional(),
 })
 
-export const aseguradoraListQuery = paginationQuery.extend({
+export const aseguradoraListQuery = listQuery({
   nombre: z.string().optional(),
 })

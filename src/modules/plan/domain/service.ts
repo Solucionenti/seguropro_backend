@@ -1,7 +1,9 @@
+import type { Page, Pageable } from '@/shared/domain/pagination'
 import type { CreatePlanInput, Plan, UpdatePlanInput } from './entities'
+import type { PlanFilters } from './repository'
 
 export interface IPlanService {
-  list(page: number, pageSize: number, active?: boolean): Promise<{ data: Plan[]; total: number }>
+  list(pageable: Pageable, filters?: PlanFilters): Promise<Page<Plan>>
   create(input: CreatePlanInput): Promise<Plan>
   getById(id: string): Promise<Plan>
   getActiveById(id: string): Promise<Plan>

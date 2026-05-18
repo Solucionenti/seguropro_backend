@@ -5,6 +5,8 @@ import { authRouter } from '@/shared/routers/auth-router'
 import { idParams } from '@/shared/utils/pagination'
 import { aseguradoraListQuery, createAseguradoraSchema, updateAseguradoraSchema } from './schemas'
 
+const ASEGURADORA_SORT_FIELDS = ['createdAt', 'updatedAt', 'nombre'] as const
+
 export const aseguradoraController = new Elysia({
   name: '@app/modules/aseguradora',
   prefix: '/aseguradoras',
@@ -14,17 +16,16 @@ export const aseguradoraController = new Elysia({
 
   .get(
     '/',
-    async ({ query, companyId, aseguradoraService, jsonPaginated }) => {
-      const { data, total } = await aseguradoraService.list({
+    async ({ query, pageable, companyId, aseguradoraService, jsonOk }) => {
+      const page = await aseguradoraService.list(pageable, {
         companyId,
-        page: query.page,
-        pageSize: query.pageSize,
         nombre: query.nombre,
       })
-      return jsonPaginated(data, total, query.page, query.pageSize)
+      return jsonOk(page)
     },
     {
       query: aseguradoraListQuery,
+      paginated: { sortFields: ASEGURADORA_SORT_FIELDS },
       requireCompany: true,
       withRole: [UserRole.OWNER, UserRole.AGENT],
       detail: {

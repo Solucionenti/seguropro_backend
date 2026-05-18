@@ -1,4 +1,5 @@
 import type { OrdenStatus } from '@gen/enums'
+import type { Page, Pageable } from '@/shared/domain/pagination'
 import type { CreateOrdenInput, Orden, OrdenWithDetails, UpdateOrdenInput } from './entities'
 
 export interface OrdenFilters {
@@ -10,11 +11,7 @@ export interface OrdenFilters {
 }
 
 export interface OrdenRepository {
-  findAll(
-    page: number,
-    pageSize: number,
-    filters: OrdenFilters,
-  ): Promise<{ data: OrdenWithDetails[]; total: number }>
+  findAll(pageable: Pageable, filters?: OrdenFilters): Promise<Page<OrdenWithDetails>>
   findById(id: string): Promise<OrdenWithDetails | null>
   findPagadaByPeriod(
     suscripcionId: string,

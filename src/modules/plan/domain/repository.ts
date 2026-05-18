@@ -1,11 +1,12 @@
+import type { Page, Pageable } from '@/shared/domain/pagination'
 import type { CreatePlanInput, Plan, UpdatePlanInput } from './entities'
 
+export interface PlanFilters {
+  active?: boolean
+}
+
 export interface PlanRepository {
-  findAll(
-    page: number,
-    pageSize: number,
-    active?: boolean,
-  ): Promise<{ data: Plan[]; total: number }>
+  findAll(pageable: Pageable, filters?: PlanFilters): Promise<Page<Plan>>
   findById(id: string): Promise<Plan | null>
   findCompleteById(id: string): Promise<Plan | null>
   findByNombre(nombre: string): Promise<Plan | null>

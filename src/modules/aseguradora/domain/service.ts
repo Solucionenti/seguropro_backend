@@ -1,9 +1,8 @@
+import type { Page, Pageable } from '@/shared/domain/pagination'
 import type { Aseguradora } from './entities'
 
-export interface ListAseguradorasInput {
+export interface ListAseguradorasFilters {
   companyId: string
-  page: number
-  pageSize: number
   nombre?: string
 }
 
@@ -19,7 +18,7 @@ export interface UpdateAseguradoraServiceInput {
 }
 
 export interface IAseguradoraService {
-  list(input: ListAseguradorasInput): Promise<{ data: Aseguradora[]; total: number }>
+  list(pageable: Pageable, filters: ListAseguradorasFilters): Promise<Page<Aseguradora>>
   create(input: CreateAseguradoraServiceInput): Promise<Aseguradora>
   getById(id: string, companyId: string): Promise<Aseguradora>
   update(id: string, companyId: string, input: UpdateAseguradoraServiceInput): Promise<Aseguradora>

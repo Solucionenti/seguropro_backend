@@ -1,9 +1,9 @@
 import { z } from 'zod'
-import { paginationQuery } from '@/shared/utils/pagination'
+import { listQuery } from '@/shared/utils/pagination'
 
 export const periodicidadEnum = z.enum(['MENSUAL', 'TRIMESTRAL', 'SEMESTRAL', 'ANUAL'])
 
-export const listPlanQuerySchema = paginationQuery.extend({
+export const listPlanQuerySchema = listQuery({
   active: z.coerce.boolean().optional(),
 })
 

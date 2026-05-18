@@ -10,6 +10,13 @@ import {
   updateSuscripcionSchema,
 } from './schemas'
 
+const SUSCRIPCION_SORT_FIELDS = [
+  'createdAt',
+  'updatedAt',
+  'fechaInicio',
+  'fechaProximoPago',
+] as const
+
 export const suscripcionController = new Elysia({
   name: '@app/modules/suscripcion',
   prefix: '/suscripciones',
@@ -21,16 +28,17 @@ export const suscripcionController = new Elysia({
 
   .get(
     '/',
-    async ({ query, suscripcionService, jsonPaginated }) => {
-      const { data, total } = await suscripcionService.list(query.page, query.pageSize, {
+    async ({ query, pageable, suscripcionService, jsonOk }) => {
+      const page = await suscripcionService.list(pageable, {
         companyId: query.companyId,
         suscripcionStatus: query.suscripcionStatus,
         active: query.active,
       })
-      return jsonPaginated(data, total, query.page, query.pageSize)
+      return jsonOk(page)
     },
     {
       query: listSuscripcionQuerySchema,
+      paginated: { sortFields: SUSCRIPCION_SORT_FIELDS },
       withRole: UserRole.MASTER_ADMIN,
       detail: { tags: ['Suscripciones'], summary: 'List subscriptions' },
     },

@@ -1,38 +1,34 @@
 import type { Prisma } from '@gen/client'
 import { ResourceStatus } from '@gen/enums'
 import type { AppPrismaClient } from '@/config/database'
+import { Page, type Pageable } from '@/shared/domain/pagination'
 import type {
   Aseguradora,
   CreateAseguradoraInput,
   UpdateAseguradoraInput,
 } from '../domain/entities'
-import type { AseguradoraRepository } from '../domain/repository'
+import type { AseguradoraFilters, AseguradoraRepository } from '../domain/repository'
 
 export class PrismaAseguradoraRepository implements AseguradoraRepository {
   constructor(private readonly prisma: AppPrismaClient) {}
 
-  async findAll(
-    companyId: string,
-    page: number,
-    pageSize: number,
-    nombre?: string,
-  ): Promise<{ data: Aseguradora[]; total: number }> {
+  async findAll(pageable: Pageable, filters: AseguradoraFilters): Promise<Page<Aseguradora>> {
     const where: Prisma.AseguradoraWhereInput = {
-      companyId,
+      companyId: filters.companyId,
       status: ResourceStatus.ACTIVE,
       active: true,
-      ...(nombre && { nombre: { contains: nombre, mode: 'insensitive' } }),
+      ...(filters.nombre && { nombre: { contains: filters.nombre, mode: 'insensitive' } }),
     }
     const [data, total] = await Promise.all([
       this.prisma.aseguradora.findMany({
         where,
-        skip: (page - 1) * pageSize,
-        take: pageSize,
-        orderBy: { createdAt: 'desc' },
+        skip: pageable.skip,
+        take: pageable.take,
+        orderBy: pageable.orderBy,
       }),
       this.prisma.aseguradora.count({ where }),
     ])
-    return { data, total }
+    return Page.of(data, total, pageable)
   }
 
   async findById(id: string, companyId: string): Promise<Aseguradora | null> {

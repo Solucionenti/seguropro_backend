@@ -1,65 +1,50 @@
 import { Elysia } from 'elysia'
+import { Page } from '@/shared/domain/pagination'
 import type { ApiMeta, ApiResponse, PaginationInfo } from './response-types'
 
-function buildOk<T>(data: T, message?: string, meta?: ApiMeta): ApiResponse<T> {
+type JsonOk = {
+  <T>(data: T, message?: string, meta?: ApiMeta): ApiResponse<T>
+  <T>(page: Page<T>, message?: string): ApiResponse<readonly T[]>
+}
+
+const jsonOk: JsonOk = ((arg: unknown, message?: string, meta?: ApiMeta): ApiResponse<unknown> => {
+  if (arg instanceof Page) {
+    const pagination: PaginationInfo = {
+      total: arg.total,
+      page: arg.page,
+      pageSize: arg.pageSize,
+      totalPages: arg.totalPages,
+      hasNext: arg.hasNext,
+      hasPrevious: arg.hasPrevious,
+    }
+    return {
+      data: arg.content,
+      success: true,
+      ...(message && { message }),
+      meta: { pagination },
+    }
+  }
   return {
-    data,
+    data: arg,
     success: true,
     ...(message && { message }),
     ...(meta && { meta }),
   }
-}
+}) as JsonOk
 
-function buildOkNoData(message: string): ApiResponse<never> {
-  return {
-    success: true,
-    message,
-  }
-}
+const jsonOkNoData = (message: string): ApiResponse<never> => ({
+  success: true,
+  message,
+})
 
-function buildPaginated<T>(
-  data: T[],
-  total: number,
-  page: number,
-  pageSize: number,
-  message?: string,
-): ApiResponse<T[]> {
-  const totalPages = Math.ceil(total / pageSize)
-  const pagination: PaginationInfo = {
-    total,
-    page,
-    pageSize,
-    totalPages,
-    hasNext: page < totalPages,
-    hasPrevious: page > 1,
-  }
-  return {
-    data,
-    success: true,
-    ...(message && { message }),
-    meta: { pagination },
-  }
-}
-
-function buildError(code: string, message: string): ApiResponse<never> {
-  return {
-    success: false,
-    message: !message ? code : `${code}: ${message}`,
-    data: undefined,
-  }
-}
+const jsonError = (code: string, message?: string): ApiResponse<never> => ({
+  success: false,
+  message: message ? `${code}: ${message}` : code,
+  data: undefined,
+})
 
 export const responsePlugin = new Elysia({ name: '@app/shared/response' }).decorate({
-  jsonOk<T>(data: T, message?: string, meta?: ApiMeta) {
-    return buildOk(data, message, meta)
-  },
-  jsonOkNoData(message: string) {
-    return buildOkNoData(message)
-  },
-  jsonPaginated<T>(data: T[], total: number, page: number, pageSize: number, message?: string) {
-    return buildPaginated(data, total, page, pageSize, message)
-  },
-  jsonError(code: string, message: string) {
-    return buildError(code, message)
-  },
+  jsonOk,
+  jsonOkNoData,
+  jsonError,
 })

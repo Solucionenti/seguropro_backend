@@ -5,19 +5,22 @@ import { authRouter } from '@/shared/routers/auth-router'
 import { idParams } from '@/shared/utils/pagination'
 import { createPlanSchema, listPlanQuerySchema, updatePlanSchema } from './schemas'
 
+const PLAN_SORT_FIELDS = ['createdAt', 'updatedAt', 'nombre', 'precio'] as const
+
 export const planController = new Elysia({ name: '@app/modules/plan', prefix: '/plans' })
   .use(authRouter)
   .use(planServicePlugin)
 
   .get(
     '/',
-    async ({ query, userRole, planService, jsonPaginated }) => {
-      const activeFilter = userRole === UserRole.OWNER ? true : query.active
-      const { data, total } = await planService.list(query.page, query.pageSize, activeFilter)
-      return jsonPaginated(data, total, query.page, query.pageSize)
+    async ({ query, pageable, userRole, planService, jsonOk }) => {
+      const active = userRole === UserRole.OWNER ? true : query.active
+      const page = await planService.list(pageable, { active })
+      return jsonOk(page)
     },
     {
       query: listPlanQuerySchema,
+      paginated: { sortFields: PLAN_SORT_FIELDS },
       withRole: [UserRole.MASTER_ADMIN, UserRole.OWNER],
       detail: { tags: ['Plans'], summary: 'List plans' },
     },
