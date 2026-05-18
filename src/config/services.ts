@@ -12,6 +12,13 @@ import { PrismaOrdenRepository } from '@/modules/orden/infrastructure/prisma-rep
 import { PrismaSuscripcionProvider } from '@/modules/orden/infrastructure/prisma-suscripcion-provider'
 import { PlanService } from '@/modules/plan/application/service'
 import { PrismaPlanRepository } from '@/modules/plan/infrastructure/prisma-repo'
+import { PolizaService } from '@/modules/poliza/application/service'
+import { PrismaAseguradoraProvider } from '@/modules/poliza/infrastructure/prisma-aseguradora-provider'
+import { PrismaClienteUserProvider } from '@/modules/poliza/infrastructure/prisma-cliente-user-provider'
+import { PrismaRamoProvider } from '@/modules/poliza/infrastructure/prisma-ramo-provider'
+import { PrismaPolizaRepository } from '@/modules/poliza/infrastructure/prisma-repo'
+import { RamoService } from '@/modules/ramo/application/service'
+import { PrismaRamoRepository } from '@/modules/ramo/infrastructure/prisma-repo'
 import { SuscripcionService } from '@/modules/suscripcion/application/service'
 import { PrismaCompanyProvider } from '@/modules/suscripcion/infrastructure/prisma-company-provider'
 import { PrismaPlanProvider } from '@/modules/suscripcion/infrastructure/prisma-plan-provider'
@@ -33,6 +40,11 @@ const planProvider = new PrismaPlanProvider(prisma)
 const suscripcionRepo = new PrismaSuscripcionRepository(prisma)
 const suscripcionProvider = new PrismaSuscripcionProvider(prisma)
 const ordenRepo = new PrismaOrdenRepository(prisma)
+const ramoRepo = new PrismaRamoRepository(prisma)
+const polizaRepo = new PrismaPolizaRepository(prisma)
+const polizaAseguradoraProvider = new PrismaAseguradoraProvider(prisma)
+const polizaRamoProvider = new PrismaRamoProvider(prisma)
+const polizaClienteProvider = new PrismaClienteUserProvider(prisma)
 const passwordHasher = new BunPasswordHasher()
 const jwtService = new JoseJwtService({
   secret: envConfig.JWT_SECRET,
@@ -46,6 +58,13 @@ const authService = new AuthService(authUserProvider, passwordHasher, jwtService
 const planService = new PlanService(planRepo)
 const suscripcionService = new SuscripcionService(suscripcionRepo, companyProvider, planProvider)
 const ordenService = new OrdenService(ordenRepo, suscripcionProvider)
+const ramoService = new RamoService(ramoRepo)
+const polizaService = new PolizaService(
+  polizaRepo,
+  polizaAseguradoraProvider,
+  polizaRamoProvider,
+  polizaClienteProvider,
+)
 
 // --- Per-module Elysia service plugins ---
 // Controllers `.use()` only the plugins they need.
@@ -88,4 +107,14 @@ export const ordenServicePlugin = new Elysia({ name: '@app/services/orden' }).de
 export const aseguradoraServicePlugin = new Elysia({ name: '@app/services/aseguradora' }).decorate(
   'aseguradoraService',
   aseguradoraService,
+)
+
+export const ramoServicePlugin = new Elysia({ name: '@app/services/ramo' }).decorate(
+  'ramoService',
+  ramoService,
+)
+
+export const polizaServicePlugin = new Elysia({ name: '@app/services/poliza' }).decorate(
+  'polizaService',
+  polizaService,
 )

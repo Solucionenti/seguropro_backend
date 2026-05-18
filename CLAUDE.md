@@ -64,6 +64,9 @@ prisma/schema.prisma                 # Single source of truth for models and enu
 | | `GET/POST /api/v1/ordenes/mis-ordenes`, `GET /api/v1/ordenes/mis-ordenes/:id` | `OWNER` |
 | | `PATCH /api/v1/ordenes/mis-ordenes/:id/pagar`, `PATCH /api/v1/ordenes/mis-ordenes/:id/pagar-primera` | `OWNER` |
 | `aseguradora` | `GET/POST /api/v1/aseguradoras`, `GET/PATCH/DELETE /api/v1/aseguradoras/:id` | `OWNER`, `AGENT` |
+| `ramo` | `GET/POST /api/v1/ramos`, `GET/PATCH/DELETE /api/v1/ramos/:id` | `OWNER`, `AGENT` |
+| `poliza` | `GET /api/v1/polizas`, `GET /api/v1/polizas/:id` | `OWNER`, `AGENT`, `CLIENT` (own only) |
+| | `POST /api/v1/polizas`, `PATCH/DELETE /api/v1/polizas/:id` | `OWNER`, `AGENT` |
 
 ## Current Prisma Models
 
@@ -76,9 +79,13 @@ Suscripcion  id, companyId, planId, suscripcionStatus, active, fechaInicio, fech
 Orden        id, suscripcionId, cicloInicio, cicloFin, monto, moneda, ordenStatus, active, proveedor?, proveedorOrdenId?, proveedorPagoId?, pagadaEn?, motivoFallo?, status, createdAt, updatedAt
 Aseguradora  id, companyId, nombre, descripcion?, active, status, createdAt, updatedAt
              @@unique([companyId, nombre])
+Ramo         id, companyId, nombre, descripcion?, active, status, createdAt, updatedAt
+             @@unique([companyId, nombre])
+Poliza       id, companyId, aseguradoraId, ramoId, clienteUserId, numeroPoliza, fechaInicio, fechaVencimiento, primaNeta, primaTotal, polizaStatus, active, status, createdAt, updatedAt
+             @@unique([companyId, numeroPoliza]) · @@index([companyId, clienteUserId])
 ```
 
-Enums: `UserRole` (MASTER_ADMIN, OWNER, AGENT, CLIENT) · `ResourceStatus` (ACTIVE, INACTIVE, DELETED) · `TipoPersona` (FISICA, MORAL) · `Periodicidad` (MENSUAL, TRIMESTRAL, SEMESTRAL, ANUAL) · `SuscripcionStatus` (TRIAL, ACTIVA, CANCELADA, VENCIDA, SUSPENDIDA) · `OrdenStatus` (PENDIENTE, PAGADA, FALLIDA, CANCELADA)
+Enums: `UserRole` (MASTER_ADMIN, OWNER, AGENT, CLIENT) · `ResourceStatus` (ACTIVE, INACTIVE, DELETED) · `TipoPersona` (FISICA, MORAL) · `Periodicidad` (MENSUAL, TRIMESTRAL, SEMESTRAL, ANUAL) · `SuscripcionStatus` (TRIAL, ACTIVA, CANCELADA, VENCIDA, SUSPENDIDA) · `OrdenStatus` (PENDIENTE, PAGADA, FALLIDA, CANCELADA) · `PolizaStatus` (VIGENTE, VENCIDA, CANCELADA, RENOVADA)
 
 ## Environment Variables
 
