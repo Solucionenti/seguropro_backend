@@ -23,6 +23,7 @@ function createMockUser(overrides: Partial<User> = {}): User {
     role: UserRole.MASTER_ADMIN,
     companyId: null,
     lastLoginAt: null,
+    active: true,
     status: ResourceStatus.ACTIVE,
     createdAt: new Date('2025-01-01'),
     updatedAt: new Date('2025-01-01'),
@@ -64,10 +65,18 @@ function createMocks() {
     findOwnerWithCompany: mock(() => Promise.resolve(null)),
     findCompleteOwner: mock(() => Promise.resolve(null)),
     countActiveMasterAdmins: mock(() => Promise.resolve(1)),
+    countActiveCompanyUsers: mock(() => Promise.resolve(0)),
+    findCompanyUsers: mock(() => Promise.resolve(Page.empty<User>(defaultPageable))),
+    findCompanyUserById: mock(() => Promise.resolve(null)),
     create: mock(() => Promise.resolve(createMockUser())),
     createOwnerWithCompany: mock(() => Promise.resolve(createMockOwnerWithCompany())),
+    createCompanyUser: mock(() => Promise.resolve({ ...createMockUser(), detalleCliente: null })),
     update: mock(() => Promise.resolve(createMockUser())),
+    updateCompanyUserWithDetalle: mock(() =>
+      Promise.resolve({ ...createMockUser(), detalleCliente: null }),
+    ),
     softDelete: mock(() => Promise.resolve()),
+    deactivateUser: mock(() => Promise.resolve()),
     findMasterAdminOrOwnerByEmail: mock(() => Promise.resolve(null)),
   }
 

@@ -7,12 +7,14 @@ import { planController } from '@/modules/plan/presentation/controller'
 import { polizaController } from '@/modules/poliza/presentation/controller'
 import { ramoController } from '@/modules/ramo/presentation/controller'
 import { suscripcionController } from '@/modules/suscripcion/presentation/controller'
+import { companyUserController } from '@/modules/user/presentation/company-user-controller'
 import { userController } from '@/modules/user/presentation/controller'
 
 export const v1 = new Elysia({ name: '@app/api/v1', prefix: '/api/v1' })
   .use(healthController)
   .use(authController)
   .use(userController)
+  .use(companyUserController)
   .use(planController)
   .use(suscripcionController)
   .use(ordenController)

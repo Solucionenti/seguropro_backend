@@ -1,10 +1,14 @@
+import type { UserRole } from '@gen/enums'
 import type { Page, Pageable } from '@/shared/domain/pagination'
 import type {
   CompanyInput,
+  CreateDetalleClienteInput,
   CreateUserInput,
+  UpdateDetalleClienteInput,
   UpdateUserInput,
   User,
   UserWithCompany,
+  UserWithDetalle,
 } from './entities'
 
 export interface UserRepository {
@@ -22,11 +26,28 @@ export interface UserRepository {
   findOwnerWithCompany(id: string): Promise<UserWithCompany | null>
   findCompleteOwner(id: string): Promise<UserWithCompany | null>
   countActiveMasterAdmins(): Promise<number>
+  countActiveCompanyUsers(companyId: string): Promise<number>
+  findCompanyUsers(
+    companyId: string,
+    pageable: Pageable,
+    roles: UserRole[],
+  ): Promise<Page<User>>
+  findCompanyUserById(companyId: string, id: string): Promise<UserWithDetalle | null>
   create(input: CreateUserInput): Promise<User>
   createOwnerWithCompany(
     userInput: CreateUserInput,
     companyInput: CompanyInput,
   ): Promise<UserWithCompany>
+  createCompanyUser(
+    input: CreateUserInput,
+    detalle?: CreateDetalleClienteInput,
+  ): Promise<UserWithDetalle>
   update(id: string, input: UpdateUserInput): Promise<User>
+  updateCompanyUserWithDetalle(
+    id: string,
+    input: UpdateUserInput,
+    detalle?: UpdateDetalleClienteInput,
+  ): Promise<UserWithDetalle>
   softDelete(id: string): Promise<void>
+  deactivateUser(id: string): Promise<void>
 }

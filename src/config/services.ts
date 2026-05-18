@@ -23,8 +23,10 @@ import { SuscripcionService } from '@/modules/suscripcion/application/service'
 import { PrismaCompanyProvider } from '@/modules/suscripcion/infrastructure/prisma-company-provider'
 import { PrismaPlanProvider } from '@/modules/suscripcion/infrastructure/prisma-plan-provider'
 import { PrismaSuscripcionRepository } from '@/modules/suscripcion/infrastructure/prisma-repo'
+import { CompanyUserService } from '@/modules/user/application/company-user-service'
 import { UserService } from '@/modules/user/application/service'
 import { PrismaUserRepository } from '@/modules/user/infrastructure/prisma-repo'
+import { PrismaSuscripcionPlanProvider } from '@/modules/user/infrastructure/prisma-suscripcion-plan-provider'
 import { BunPasswordHasher } from '@/shared/infrastructure/bun-password-hasher'
 import { JoseJwtService } from '@/shared/infrastructure/jose-jwt-service'
 
@@ -51,8 +53,10 @@ const jwtService = new JoseJwtService({
   accessExpiration: envConfig.JWT_ACCESS_EXPIRATION,
   refreshExpiration: envConfig.JWT_REFRESH_EXPIRATION,
 })
+const suscripcionPlanProvider = new PrismaSuscripcionPlanProvider(prisma)
 const aseguradoraService = new AseguradoraService(aseguradoraRepo)
 const userService = new UserService(userRepo, passwordHasher)
+const companyUserService = new CompanyUserService(userRepo, passwordHasher, suscripcionPlanProvider)
 const healthService = new HealthService(healthRepo)
 const authService = new AuthService(authUserProvider, passwordHasher, jwtService)
 const planService = new PlanService(planRepo)
@@ -118,3 +122,7 @@ export const polizaServicePlugin = new Elysia({ name: '@app/services/poliza' }).
   'polizaService',
   polizaService,
 )
+
+export const companyUserServicePlugin = new Elysia({
+  name: '@app/services/company-user',
+}).decorate('companyUserService', companyUserService)
