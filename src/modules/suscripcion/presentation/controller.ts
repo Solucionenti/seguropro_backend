@@ -55,13 +55,14 @@ export const suscripcionController = new Elysia({
   .get(
     '/mi-suscripcion',
     async ({ companyId, suscripcionService, jsonOk, jsonOkNoData }) => {
-      const suscripcion = await suscripcionService.getMySubscription(companyId as string)
+      const suscripcion = await suscripcionService.getMySubscription(companyId)
       if (!suscripcion) {
         return jsonOkNoData('No active subscription found')
       }
       return jsonOk(suscripcion)
     },
     {
+      requireCompany: true,
       withRole: UserRole.OWNER,
       detail: {
         tags: ['Suscripciones'],
@@ -74,11 +75,12 @@ export const suscripcionController = new Elysia({
   .post(
     '/mi-suscripcion',
     async ({ companyId, body, suscripcionService, jsonOk }) => {
-      const suscripcion = await suscripcionService.createMySubscription(companyId as string, body)
+      const suscripcion = await suscripcionService.createMySubscription(companyId, body)
       return jsonOk(suscripcion, 'Subscription created successfully')
     },
     {
       body: createOwnerSuscripcionSchema,
+      requireCompany: true,
       withRole: UserRole.OWNER,
       detail: {
         tags: ['Suscripciones'],
@@ -92,14 +94,12 @@ export const suscripcionController = new Elysia({
   .post(
     '/mi-suscripcion-con-orden',
     async ({ companyId, body, suscripcionService, jsonOk }) => {
-      const suscripcion = await suscripcionService.createMySubscriptionWithOrder(
-        companyId as string,
-        body,
-      )
+      const suscripcion = await suscripcionService.createMySubscriptionWithOrder(companyId, body)
       return jsonOk(suscripcion, 'Subscription created successfully')
     },
     {
       body: createOwnerSuscripcionSchema,
+      requireCompany: true,
       withRole: UserRole.OWNER,
       detail: {
         tags: ['Suscripciones'],
@@ -113,10 +113,11 @@ export const suscripcionController = new Elysia({
   .delete(
     '/mi-suscripcion',
     async ({ companyId, suscripcionService, jsonOkNoData }) => {
-      await suscripcionService.cancelMySubscription(companyId as string)
+      await suscripcionService.cancelMySubscription(companyId)
       return jsonOkNoData('Subscription cancelled successfully')
     },
     {
+      requireCompany: true,
       withRole: UserRole.OWNER,
       detail: {
         tags: ['Suscripciones'],

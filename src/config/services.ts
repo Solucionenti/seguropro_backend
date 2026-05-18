@@ -1,6 +1,8 @@
 import { Elysia } from 'elysia'
 import { prisma } from '@/config/database'
 import { envConfig } from '@/config/env'
+import { AseguradoraService } from '@/modules/aseguradora/application/service'
+import { PrismaAseguradoraRepository } from '@/modules/aseguradora/infrastructure/prisma-repo'
 import { AuthService } from '@/modules/auth/application/service'
 import { PrismaAuthUserProvider } from '@/modules/auth/infrastructure/prisma-auth-user-provider'
 import { HealthService } from '@/modules/health/application/service'
@@ -21,6 +23,7 @@ import { JoseJwtService } from '@/shared/infrastructure/jose-jwt-service'
 
 // --- Instantiation (wiring) ---
 
+const aseguradoraRepo = new PrismaAseguradoraRepository(prisma)
 const authUserProvider = new PrismaAuthUserProvider(prisma)
 const userRepo = new PrismaUserRepository(prisma)
 const healthRepo = new PrismaHealthRepository(prisma)
@@ -36,6 +39,7 @@ const jwtService = new JoseJwtService({
   accessExpiration: envConfig.JWT_ACCESS_EXPIRATION,
   refreshExpiration: envConfig.JWT_REFRESH_EXPIRATION,
 })
+const aseguradoraService = new AseguradoraService(aseguradoraRepo)
 const userService = new UserService(userRepo, passwordHasher)
 const healthService = new HealthService(healthRepo)
 const authService = new AuthService(authUserProvider, passwordHasher, jwtService)
@@ -79,4 +83,9 @@ export const suscripcionServicePlugin = new Elysia({ name: '@app/services/suscri
 export const ordenServicePlugin = new Elysia({ name: '@app/services/orden' }).decorate(
   'ordenService',
   ordenService,
+)
+
+export const aseguradoraServicePlugin = new Elysia({ name: '@app/services/aseguradora' }).decorate(
+  'aseguradoraService',
+  aseguradoraService,
 )

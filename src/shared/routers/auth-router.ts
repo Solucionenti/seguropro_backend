@@ -40,4 +40,10 @@ export const authRouter = new Elysia({ name: '@app/shared/auth-router' })
       },
     }),
   })
+  .macro('requireCompany', {
+    resolve({ companyId }) {
+      if (!companyId) throw new ForbiddenError('This route requires a company-scoped account')
+      return { companyId }
+    },
+  })
   .as('scoped')

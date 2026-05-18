@@ -63,6 +63,7 @@
 ### Macros
 - **`paginated`** (defined in `publicRouter`): Named single macro using Elysia's `schema + resolve` pattern. When a route sets `{ paginated: true }`, the macro automatically adds the `paginationQuery` Zod schema to the route's `query` and resolves typed `page` and `pageSize` into the handler context. No need to manually add `query: paginationQuery` — the macro handles it.
 - **`withRole`** (defined in `authRouter`): Accepts `UserRole | UserRole[]`. Runs a `beforeHandle` that checks the authenticated user's role from the JWT. Throws `ForbiddenError` (403) if the role doesn't match.
+- **`requireCompany`** (defined in `authRouter`): Set `{ requireCompany: true }` on any tenant-scoped route. Runs a `resolve` that throws `ForbiddenError` (403) if `companyId` is `null` (i.e. the caller is a `MASTER_ADMIN`). Crucially, its return type narrows `companyId` from `string | null` to `string` in the handler context — no `as string` cast is ever needed. Always combine with `withRole: [UserRole.OWNER, UserRole.AGENT]` (or similar) for routes that require a company account.
 - Pagination defaults and limits are configured via environment variables (`PAGINATION_DEFAULT_PAGE_SIZE`, `PAGINATION_MAX_PAGE_SIZE`) and consumed by the shared `paginationQuery` Zod schema in `src/shared/utils/pagination.ts`.
 
 ### Dependency Injection
@@ -121,6 +122,7 @@
 - JWT tokens carry `companyId` for tenant isolation in every authenticated request.
 - `MASTER_ADMIN` users have `companyId = null` and operate at platform level.
 - Login flow: 1) `POST /auth/identify` with email → returns list of companies, 2) `POST /auth/login` with email + password + companyId → returns tokens.
+- Use `{ requireCompany: true }` on every route that requires a non-null `companyId`. This throws `ForbiddenError` for `MASTER_ADMIN` callers and narrows the type to `string` — never cast `companyId as string` in handlers.
 
 ## Architecture: Clean Architecture (Feature-First)
 

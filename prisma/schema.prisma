@@ -64,6 +64,7 @@ model Company {
 
   users         User[]
   suscripciones Suscripcion[]
+  aseguradoras  Aseguradora[]
 
   @@map("companies")
 }
@@ -153,4 +154,21 @@ model Orden {
   suscripcion Suscripcion @relation(fields: [suscripcionId], references: [id])
 
   @@map("ordenes")
+}
+
+model Aseguradora {
+  id          String  @id @default(uuid())
+  companyId   String
+  nombre      String
+  descripcion String?
+  active      Boolean @default(true)
+
+  status    ResourceStatus @default(ACTIVE)
+  createdAt DateTime       @default(now())
+  updatedAt DateTime       @updatedAt
+
+  company Company @relation(fields: [companyId], references: [id])
+
+  @@unique([companyId, nombre], name: "company_nombre_unique")
+  @@map("aseguradoras")
 }

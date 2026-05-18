@@ -52,21 +52,33 @@ prisma/schema.prisma                 # Single source of truth for models and enu
 
 | Module | Routes | Auth |
 |--------|--------|------|
+| `health` | `GET /api/v1/health` | Public |
 | `auth` | `POST /api/v1/auth/identify`, `POST /api/v1/auth/login` | Public |
 | `user` | `GET/POST /api/v1/users/admins`, `GET/PATCH/DELETE /api/v1/users/admins/:id` | `MASTER_ADMIN` |
 | | `GET/POST /api/v1/users/owners`, `GET/PATCH/DELETE /api/v1/users/owners/:id` | `MASTER_ADMIN` |
 | | `GET/PATCH /api/v1/users/me` | Any authenticated user |
-| `health` | `GET /api/v1/health` | Public |
+| `plan` | `GET/POST /api/v1/planes`, `GET/PATCH/DELETE /api/v1/planes/:id` | `MASTER_ADMIN` |
+| `suscripcion` | `GET/POST /api/v1/suscripciones`, `GET/PATCH/DELETE /api/v1/suscripciones/:id` | `MASTER_ADMIN` |
+| | `GET/POST/DELETE /api/v1/suscripciones/mi-suscripcion`, `POST /api/v1/suscripciones/mi-suscripcion-con-orden` | `OWNER` |
+| `orden` | `GET/POST /api/v1/ordenes`, `GET/PATCH/DELETE /api/v1/ordenes/:id` | `MASTER_ADMIN` |
+| | `GET/POST /api/v1/ordenes/mis-ordenes`, `GET /api/v1/ordenes/mis-ordenes/:id` | `OWNER` |
+| | `PATCH /api/v1/ordenes/mis-ordenes/:id/pagar`, `PATCH /api/v1/ordenes/mis-ordenes/:id/pagar-primera` | `OWNER` |
+| `aseguradora` | `GET/POST /api/v1/aseguradoras`, `GET/PATCH/DELETE /api/v1/aseguradoras/:id` | `OWNER`, `AGENT` |
 
 ## Current Prisma Models
 
 ```
-Company   id, razonSocial, nombreComercial, rfc, tipoPersona, emailContacto, telefonoContacto, pais, estado, status, createdAt, updatedAt
-User      id, companyId?, role, firstName, lastName, email, phone, passwordHash, lastLoginAt?, status, createdAt, updatedAt
-          @@unique([companyId, email])
+Company      id, razonSocial?, nombreComercial?, rfc?, tipoPersona?, emailContacto, telefonoContacto, pais?, estado?, status, createdAt, updatedAt
+User         id, companyId?, role, firstName, lastName, email, phone, passwordHash, lastLoginAt?, status, createdAt, updatedAt
+             @@unique([companyId, email])
+Plan         id, nombre(unique), descripcion?, precio, periodicidad, limiteUsuarios, limiteAlmacenamientoGB?, features?, active, status, createdAt, updatedAt
+Suscripcion  id, companyId, planId, suscripcionStatus, active, fechaInicio, fechaFin?, fechaProximoPago, renovacionAutomatica, status, createdAt, updatedAt
+Orden        id, suscripcionId, cicloInicio, cicloFin, monto, moneda, ordenStatus, active, proveedor?, proveedorOrdenId?, proveedorPagoId?, pagadaEn?, motivoFallo?, status, createdAt, updatedAt
+Aseguradora  id, companyId, nombre, descripcion?, active, status, createdAt, updatedAt
+             @@unique([companyId, nombre])
 ```
 
-Enums: `UserRole` (MASTER_ADMIN, OWNER, AGENT, CLIENT) · `ResourceStatus` (ACTIVE, INACTIVE, DELETED) · `TipoPersona` (FISICA, MORAL)
+Enums: `UserRole` (MASTER_ADMIN, OWNER, AGENT, CLIENT) · `ResourceStatus` (ACTIVE, INACTIVE, DELETED) · `TipoPersona` (FISICA, MORAL) · `Periodicidad` (MENSUAL, TRIMESTRAL, SEMESTRAL, ANUAL) · `SuscripcionStatus` (TRIAL, ACTIVA, CANCELADA, VENCIDA, SUSPENDIDA) · `OrdenStatus` (PENDIENTE, PAGADA, FALLIDA, CANCELADA)
 
 ## Environment Variables
 
@@ -133,7 +145,7 @@ Use response helpers from context: `jsonOk(data)`, `jsonOk(data, message)`, `jso
 
 ### Routers
 - **`publicRouter`** (`src/shared/routers/public-router.ts`): `dbPlugin + errorHandler + responsePlugin + paginated macro`. For unauthenticated routes.
-- **`authRouter`** (`src/shared/routers/auth-router.ts`): inherits `publicRouter + jwtServicePlugin`, resolves Bearer token → `userId`, `userRole`, `companyId`. For protected routes.
+- **`authRouter`** (`src/shared/routers/auth-router.ts`): inherits `publicRouter + jwtServicePlugin`, resolves Bearer token → `userId`, `userRole`, `companyId`. Provides `withRole` and `requireCompany` macros. For protected routes.
 - Both use `.as('scoped')`.
 - Every module controller MUST `.use(publicRouter)` or `.use(authRouter)`.
 - If a controller has both public and protected routes, split into two Elysia instances.
@@ -142,6 +154,7 @@ Use response helpers from context: `jsonOk(data)`, `jsonOk(data, message)`, `jso
 ### Macros
 - **`paginated`** (on `publicRouter`): set `{ paginated: true }` on a route to auto-add `paginationQuery` and resolve `page`/`pageSize` into the handler context.
 - **`withRole`** (on `authRouter`): `{ withRole: UserRole.MASTER_ADMIN }` or `{ withRole: ['OWNER', 'MASTER_ADMIN'] }`. Throws `ForbiddenError` (403) on mismatch.
+- **`requireCompany`** (on `authRouter`): set `{ requireCompany: true }` on any tenant-scoped route. Throws `ForbiddenError` (403) if `companyId` is `null` (i.e. the caller is a `MASTER_ADMIN`). Also narrows `companyId` from `string | null` to `string` in the handler — no `as string` cast needed. Use on every route that requires a company-scoped account (`OWNER`, `AGENT`).
 
 ### Dependency Injection
 - Services with business logic MUST be classes implementing interfaces (ports). Dependencies injected via constructor.
