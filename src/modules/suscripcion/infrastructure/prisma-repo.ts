@@ -82,7 +82,11 @@ export class PrismaSuscripcionRepository implements SuscripcionRepository {
   async findActiveByCompanyWithDetails(companyId: string): Promise<SuscripcionWithDetails | null> {
     return this.prisma.suscripcion.findFirst({
       where: { companyId, active: true, status: ResourceStatus.ACTIVE },
-      include: includeDetails,
+      include: {
+        company: true,
+        plan: true,
+        ordenes: true,
+      },
     })
   }
 
