@@ -4,9 +4,12 @@ import { UserService } from '@/modules/user/application/service'
 import type { CompanyInfo, User, UserWithCompany } from '@/modules/user/domain/entities'
 import type { UserRepository } from '@/modules/user/domain/repository'
 import { NotFoundError } from '@/shared/domain/not-found-error'
+import { Page, Pageable } from '@/shared/domain/pagination'
 import type { PasswordHasher } from '@/shared/domain/password-hasher'
 import { ValidationError } from '@/shared/domain/validation-error'
 import type { Mocked } from '../../../utils/mocked'
+
+const defaultPageable = new Pageable(1, 20)
 
 // ── Factories ────────────────────────────────────────────
 
@@ -20,6 +23,7 @@ function createMockUser(overrides: Partial<User> = {}): User {
     role: UserRole.MASTER_ADMIN,
     companyId: null,
     lastLoginAt: null,
+    active: true,
     status: ResourceStatus.ACTIVE,
     createdAt: new Date('2025-01-01'),
     updatedAt: new Date('2025-01-01'),
@@ -51,20 +55,28 @@ function createMockOwnerWithCompany(overrides: Partial<UserWithCompany> = {}): U
 function createMocks() {
   const repo: Mocked<UserRepository> = {
     findById: mock(() => Promise.resolve(null)),
-    findByCompanyId: mock(() => Promise.resolve({ data: [], total: 0 })),
+    findByCompanyId: mock(() => Promise.resolve(Page.empty<User>(defaultPageable))),
     findByEmailAndCompany: mock(() => Promise.resolve(null)),
     findMasterAdminByEmail: mock(() => Promise.resolve(null)),
     findCompaniesByEmail: mock(() => Promise.resolve([])),
-    findAllMasterAdmins: mock(() => Promise.resolve({ data: [], total: 0 })),
-    findAllOwners: mock(() => Promise.resolve({ data: [], total: 0 })),
+    findAllMasterAdmins: mock(() => Promise.resolve(Page.empty<User>(defaultPageable))),
+    findAllOwners: mock(() => Promise.resolve(Page.empty<UserWithCompany>(defaultPageable))),
     findOwnerByEmail: mock(() => Promise.resolve(null)),
     findOwnerWithCompany: mock(() => Promise.resolve(null)),
     findCompleteOwner: mock(() => Promise.resolve(null)),
     countActiveMasterAdmins: mock(() => Promise.resolve(1)),
+    countActiveCompanyUsers: mock(() => Promise.resolve(0)),
+    findCompanyUsers: mock(() => Promise.resolve(Page.empty<User>(defaultPageable))),
+    findCompanyUserById: mock(() => Promise.resolve(null)),
     create: mock(() => Promise.resolve(createMockUser())),
     createOwnerWithCompany: mock(() => Promise.resolve(createMockOwnerWithCompany())),
+    createCompanyUser: mock(() => Promise.resolve({ ...createMockUser(), detalleCliente: null })),
     update: mock(() => Promise.resolve(createMockUser())),
+    updateCompanyUserWithDetalle: mock(() =>
+      Promise.resolve({ ...createMockUser(), detalleCliente: null }),
+    ),
     softDelete: mock(() => Promise.resolve()),
+    deactivateUser: mock(() => Promise.resolve()),
     findMasterAdminOrOwnerByEmail: mock(() => Promise.resolve(null)),
   }
 
@@ -92,13 +104,13 @@ describe('UserService', () => {
   describe('listAdmins', () => {
     it('should return paginated list of admins', async () => {
       const admins = [createMockUser(), createMockUser({ id: 'user-2', email: 'admin2@test.com' })]
-      mocks.repo.findAllMasterAdmins.mockResolvedValue({ data: admins, total: 2 })
+      mocks.repo.findAllMasterAdmins.mockResolvedValue(Page.of(admins, 2, defaultPageable))
 
-      const result = await service.listAdmins(1, 20)
+      const result = await service.listAdmins(defaultPageable)
 
-      expect(result.data).toHaveLength(2)
+      expect(result.content).toHaveLength(2)
       expect(result.total).toBe(2)
-      expect(mocks.repo.findAllMasterAdmins).toHaveBeenCalledWith(1, 20)
+      expect(mocks.repo.findAllMasterAdmins).toHaveBeenCalledWith(defaultPageable)
     })
   })
 
@@ -210,13 +222,14 @@ describe('UserService', () => {
   describe('listOwners', () => {
     it('should return paginated list of owners with company info', async () => {
       const owners = [createMockOwnerWithCompany()]
-      mocks.repo.findAllOwners.mockResolvedValue({ data: owners, total: 1 })
+      const pageable = new Pageable(1, 10)
+      mocks.repo.findAllOwners.mockResolvedValue(Page.of(owners, 1, pageable))
 
-      const result = await service.listOwners(1, 10)
+      const result = await service.listOwners(pageable)
 
-      expect(result.data).toHaveLength(1)
-      expect(result.data[0]?.company?.nombreComercial).toBe('Test Company')
-      expect(mocks.repo.findAllOwners).toHaveBeenCalledWith(1, 10)
+      expect(result.content).toHaveLength(1)
+      expect(result.content[0]?.company?.nombreComercial).toBe('Test Company')
+      expect(mocks.repo.findAllOwners).toHaveBeenCalledWith(pageable)
     })
   })
 

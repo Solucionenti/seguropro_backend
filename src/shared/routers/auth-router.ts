@@ -32,12 +32,18 @@ export const authRouter = new Elysia({ name: '@app/shared/auth-router' })
   .resolve(({ headers, jwtService }) => resolveAuthUser(headers, jwtService))
   .macro({
     withRole: (requiredRoles: UserRole | UserRole[]) => ({
-      beforeHandle({ userRole }: { userRole?: string }) {
+      beforeHandle({ userRole }) {
         const roles = Array.isArray(requiredRoles) ? requiredRoles : [requiredRoles]
         if (!userRole || !roles.includes(userRole as UserRole)) {
           throw new ForbiddenError('Insufficient permissions')
         }
       },
     }),
+  })
+  .macro('requireCompany', {
+    resolve({ companyId }) {
+      if (!companyId) throw new ForbiddenError('This route requires a company-scoped account')
+      return { companyId }
+    },
   })
   .as('scoped')

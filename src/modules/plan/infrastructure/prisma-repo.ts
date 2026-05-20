@@ -1,7 +1,8 @@
 import { ResourceStatus } from '@gen/enums'
 import type { AppPrismaClient } from '@/config/database'
+import { Page, type Pageable } from '@/shared/domain/pagination'
 import type { CreatePlanInput, Plan, UpdatePlanInput } from '../domain/entities'
-import type { PlanRepository } from '../domain/repository'
+import type { PlanFilters, PlanRepository } from '../domain/repository'
 
 const completePlan = {
   suscripciones: true,
@@ -10,25 +11,21 @@ const completePlan = {
 export class PrismaPlanRepository implements PlanRepository {
   constructor(private readonly prisma: AppPrismaClient) {}
 
-  async findAll(
-    page: number,
-    pageSize: number,
-    active?: boolean,
-  ): Promise<{ data: Plan[]; total: number }> {
+  async findAll(pageable: Pageable, filters: PlanFilters = {}): Promise<Page<Plan>> {
     const where = {
       status: ResourceStatus.ACTIVE,
-      ...(active !== undefined && { active }),
+      ...(filters.active !== undefined && { active: filters.active }),
     }
     const [data, total] = await Promise.all([
       this.prisma.plan.findMany({
         where,
-        skip: (page - 1) * pageSize,
-        take: pageSize,
-        orderBy: { createdAt: 'desc' },
+        skip: pageable.skip,
+        take: pageable.take,
+        orderBy: pageable.orderBy,
       }),
       this.prisma.plan.count({ where }),
     ])
-    return { data, total }
+    return Page.of(data, total, pageable)
   }
 
   async findById(id: string): Promise<Plan | null> {

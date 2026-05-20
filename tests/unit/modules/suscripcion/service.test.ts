@@ -11,8 +11,11 @@ import type {
 import type { PlanProvider } from '@/modules/suscripcion/domain/plan-provider'
 import type { SuscripcionRepository } from '@/modules/suscripcion/domain/repository'
 import { NotFoundError } from '@/shared/domain/not-found-error'
+import { Page, Pageable } from '@/shared/domain/pagination'
 import { ValidationError } from '@/shared/domain/validation-error'
 import type { Mocked } from '../../../utils/mocked'
+
+const defaultPageable = new Pageable(1, 20)
 
 // ── Factories ────────────────────────────────────────────
 
@@ -55,7 +58,7 @@ function createMockWithDetails(overrides: Partial<Suscripcion> = {}): Suscripcio
 
 function createMocks() {
   const repo: Mocked<SuscripcionRepository> = {
-    findAll: mock(() => Promise.resolve({ data: [], total: 0 })),
+    findAll: mock(() => Promise.resolve(Page.empty<SuscripcionWithDetails>(defaultPageable))),
     findById: mock(() => Promise.resolve(null)),
     findCompleteById: mock(() => Promise.resolve(null)),
     findActiveByCompany: mock(() => Promise.resolve(null)),
@@ -91,21 +94,21 @@ describe('SuscripcionService', () => {
   describe('list', () => {
     it('should return paginated list', async () => {
       const items = [createMockWithDetails(), createMockWithDetails({ id: 'sus-2' })]
-      mocks.repo.findAll.mockResolvedValue({ data: items, total: 2 })
+      mocks.repo.findAll.mockResolvedValue(Page.of(items, 2, defaultPageable))
 
-      const result = await service.list(1, 20, {})
+      const result = await service.list(defaultPageable, {})
 
-      expect(result.data).toHaveLength(2)
+      expect(result.content).toHaveLength(2)
       expect(result.total).toBe(2)
-      expect(mocks.repo.findAll).toHaveBeenCalledWith(1, 20, {})
+      expect(mocks.repo.findAll).toHaveBeenCalledWith(defaultPageable, {})
     })
 
     it('should forward filters to repository', async () => {
-      mocks.repo.findAll.mockResolvedValue({ data: [], total: 0 })
+      const pageable = new Pageable(1, 10)
 
-      await service.list(1, 10, { companyId: 'company-1', active: true })
+      await service.list(pageable, { companyId: 'company-1', active: true })
 
-      expect(mocks.repo.findAll).toHaveBeenCalledWith(1, 10, {
+      expect(mocks.repo.findAll).toHaveBeenCalledWith(pageable, {
         companyId: 'company-1',
         active: true,
       })

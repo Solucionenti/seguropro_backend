@@ -1,3 +1,4 @@
+import type { Page, Pageable } from '@/shared/domain/pagination'
 import type {
   CreateOwnerSuscripcionInput,
   CreateSuscripcionInput,
@@ -7,11 +8,7 @@ import type {
 import type { SuscripcionFilters } from './repository'
 
 export interface ISuscripcionService {
-  list(
-    page: number,
-    pageSize: number,
-    filters: SuscripcionFilters,
-  ): Promise<{ data: SuscripcionWithDetails[]; total: number }>
+  list(pageable: Pageable, filters: SuscripcionFilters): Promise<Page<SuscripcionWithDetails>>
   create(input: CreateSuscripcionInput): Promise<SuscripcionWithDetails>
   getById(id: string): Promise<SuscripcionWithDetails>
   update(id: string, input: UpdateSuscripcionInput): Promise<SuscripcionWithDetails>

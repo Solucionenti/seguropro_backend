@@ -4,8 +4,11 @@ import { PlanService } from '@/modules/plan/application/service'
 import type { Plan } from '@/modules/plan/domain/entities'
 import type { PlanRepository } from '@/modules/plan/domain/repository'
 import { NotFoundError } from '@/shared/domain/not-found-error'
+import { Page, Pageable } from '@/shared/domain/pagination'
 import { ValidationError } from '@/shared/domain/validation-error'
 import type { Mocked } from '../../../utils/mocked'
+
+const defaultPageable = new Pageable(1, 20)
 
 // ── Factories ────────────────────────────────────────────
 
@@ -31,7 +34,7 @@ function createMockPlan(overrides: Partial<Plan> = {}): Plan {
 
 function createMocks() {
   const repo: Mocked<PlanRepository> = {
-    findAll: mock(() => Promise.resolve({ data: [], total: 0 })),
+    findAll: mock(() => Promise.resolve(Page.empty<Plan>(defaultPageable))),
     findById: mock(() => Promise.resolve(null)),
     findCompleteById: mock(() => Promise.resolve(null)),
     findByNombre: mock(() => Promise.resolve(null)),
@@ -58,27 +61,26 @@ describe('PlanService', () => {
   describe('list', () => {
     it('should return paginated list of plans', async () => {
       const plans = [createMockPlan(), createMockPlan({ id: 'plan-2', nombre: 'Plan Pro' })]
-      mocks.repo.findAll.mockResolvedValue({ data: plans, total: 2 })
+      mocks.repo.findAll.mockResolvedValue(Page.of(plans, 2, defaultPageable))
 
-      const result = await service.list(1, 20)
+      const result = await service.list(defaultPageable)
 
-      expect(result.data).toHaveLength(2)
+      expect(result.content).toHaveLength(2)
       expect(result.total).toBe(2)
-      expect(mocks.repo.findAll).toHaveBeenCalledWith(1, 20, undefined)
+      expect(mocks.repo.findAll).toHaveBeenCalledWith(defaultPageable, undefined)
     })
 
     it('should forward active filter to repository', async () => {
-      mocks.repo.findAll.mockResolvedValue({ data: [], total: 0 })
+      const pageable = new Pageable(1, 10)
+      await service.list(pageable, { active: false })
 
-      await service.list(1, 10, false)
-
-      expect(mocks.repo.findAll).toHaveBeenCalledWith(1, 10, false)
+      expect(mocks.repo.findAll).toHaveBeenCalledWith(pageable, { active: false })
     })
 
     it('should return empty list when no plans exist', async () => {
-      const result = await service.list(1, 20)
+      const result = await service.list(defaultPageable)
 
-      expect(result.data).toHaveLength(0)
+      expect(result.content).toHaveLength(0)
       expect(result.total).toBe(0)
     })
   })

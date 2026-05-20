@@ -13,8 +13,11 @@ import type {
   SuscripcionProvider,
 } from '@/modules/orden/domain/suscripcion-provider'
 import { NotFoundError } from '@/shared/domain/not-found-error'
+import { Page, Pageable } from '@/shared/domain/pagination'
 import { ValidationError } from '@/shared/domain/validation-error'
 import type { Mocked } from '../../../utils/mocked'
+
+const defaultPageable = new Pageable(1, 20)
 
 // ── Factories ────────────────────────────────────────────
 
@@ -67,7 +70,7 @@ function createMockWithDetails(overrides: Partial<Orden> = {}): OrdenWithDetails
 
 function createMocks() {
   const repo: Mocked<OrdenRepository> = {
-    findAll: mock(() => Promise.resolve({ data: [], total: 0 })),
+    findAll: mock(() => Promise.resolve(Page.empty<OrdenWithDetails>(defaultPageable))),
     findById: mock(() => Promise.resolve(null)),
     findPagadaByPeriod: mock(() => Promise.resolve(null)),
     create: mock(() => Promise.resolve(createMockWithDetails())),
@@ -99,20 +102,19 @@ describe('OrdenService', () => {
   describe('list', () => {
     it('should return paginated list', async () => {
       const items = [createMockWithDetails(), createMockWithDetails({ id: 'ord-2' })]
-      mocks.repo.findAll.mockResolvedValue({ data: items, total: 2 })
+      mocks.repo.findAll.mockResolvedValue(Page.of(items, 2, defaultPageable))
 
-      const result = await service.list(1, 20, {})
+      const result = await service.list(defaultPageable, {})
 
-      expect(result.data).toHaveLength(2)
+      expect(result.content).toHaveLength(2)
       expect(result.total).toBe(2)
     })
 
     it('should forward filters to repository', async () => {
-      mocks.repo.findAll.mockResolvedValue({ data: [], total: 0 })
+      const pageable = new Pageable(1, 10)
+      await service.list(pageable, { companyId: 'company-1', ordenStatus: OrdenStatus.PAGADA })
 
-      await service.list(1, 10, { companyId: 'company-1', ordenStatus: OrdenStatus.PAGADA })
-
-      expect(mocks.repo.findAll).toHaveBeenCalledWith(1, 10, {
+      expect(mocks.repo.findAll).toHaveBeenCalledWith(pageable, {
         companyId: 'company-1',
         ordenStatus: OrdenStatus.PAGADA,
       })
@@ -270,13 +272,10 @@ describe('OrdenService', () => {
 
   describe('listMyOrdenes', () => {
     it('should always filter by companyId and active=true', async () => {
-      mocks.repo.findAll.mockResolvedValue({ data: [], total: 0 })
-
-      await service.listMyOrdenes('company-1', 1, 20, {})
+      await service.listMyOrdenes('company-1', defaultPageable, {})
 
       expect(mocks.repo.findAll).toHaveBeenCalledWith(
-        1,
-        20,
+        defaultPageable,
         expect.objectContaining({ companyId: 'company-1', active: true }),
       )
     })
@@ -284,17 +283,16 @@ describe('OrdenService', () => {
     it('should forward status and date filters', async () => {
       const cicloInicio = new Date('2025-01-01')
       const cicloFin = new Date('2025-01-31')
-      mocks.repo.findAll.mockResolvedValue({ data: [], total: 0 })
+      const pageable = new Pageable(1, 10)
 
-      await service.listMyOrdenes('company-1', 1, 10, {
+      await service.listMyOrdenes('company-1', pageable, {
         ordenStatus: OrdenStatus.PAGADA,
         cicloInicio,
         cicloFin,
       })
 
       expect(mocks.repo.findAll).toHaveBeenCalledWith(
-        1,
-        10,
+        pageable,
         expect.objectContaining({
           companyId: 'company-1',
           active: true,

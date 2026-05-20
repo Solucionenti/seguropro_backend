@@ -12,6 +12,15 @@ import {
   updateOrdenSchema,
 } from './schemas'
 
+const ORDEN_SORT_FIELDS = [
+  'createdAt',
+  'updatedAt',
+  'cicloInicio',
+  'cicloFin',
+  'pagadaEn',
+  'monto',
+] as const
+
 export const ordenController = new Elysia({ name: '@app/modules/orden', prefix: '/ordenes' })
   .use(authRouter)
   .use(ordenServicePlugin)
@@ -20,17 +29,18 @@ export const ordenController = new Elysia({ name: '@app/modules/orden', prefix: 
 
   .get(
     '/',
-    async ({ query, ordenService, jsonPaginated }) => {
-      const { data, total } = await ordenService.list(query.page, query.pageSize, {
+    async ({ query, pageable, ordenService, jsonOk }) => {
+      const page = await ordenService.list(pageable, {
         companyId: query.companyId,
         ordenStatus: query.ordenStatus,
         cicloInicio: query.cicloInicio,
         cicloFin: query.cicloFin,
       })
-      return jsonPaginated(data, total, query.page, query.pageSize)
+      return jsonOk(page)
     },
     {
       query: listOrdenQuerySchema,
+      paginated: { sortFields: ORDEN_SORT_FIELDS },
       withRole: UserRole.MASTER_ADMIN,
       detail: { tags: ['Ordenes'], summary: 'List orders' },
     },
@@ -54,21 +64,18 @@ export const ordenController = new Elysia({ name: '@app/modules/orden', prefix: 
 
   .get(
     '/mis-ordenes',
-    async ({ companyId, query, ordenService, jsonPaginated }) => {
-      const { data, total } = await ordenService.listMyOrdenes(
-        companyId as string,
-        query.page,
-        query.pageSize,
-        {
-          ordenStatus: query.ordenStatus,
-          cicloInicio: query.cicloInicio,
-          cicloFin: query.cicloFin,
-        },
-      )
-      return jsonPaginated(data, total, query.page, query.pageSize)
+    async ({ companyId, query, pageable, ordenService, jsonOk }) => {
+      const page = await ordenService.listMyOrdenes(companyId, pageable, {
+        ordenStatus: query.ordenStatus,
+        cicloInicio: query.cicloInicio,
+        cicloFin: query.cicloFin,
+      })
+      return jsonOk(page)
     },
     {
       query: listOwnerOrdenQuerySchema,
+      paginated: { sortFields: ORDEN_SORT_FIELDS },
+      requireCompany: true,
       withRole: UserRole.OWNER,
       detail: {
         tags: ['Ordenes'],
@@ -81,11 +88,12 @@ export const ordenController = new Elysia({ name: '@app/modules/orden', prefix: 
   .post(
     '/mis-ordenes',
     async ({ companyId, body, ordenService, jsonOk }) => {
-      const orden = await ordenService.createMyOrden(companyId as string, body)
+      const orden = await ordenService.createMyOrden(companyId, body)
       return jsonOk(orden, 'Orden created successfully')
     },
     {
       body: createOwnerOrdenSchema,
+      requireCompany: true,
       withRole: UserRole.OWNER,
       detail: {
         tags: ['Ordenes'],
@@ -99,11 +107,12 @@ export const ordenController = new Elysia({ name: '@app/modules/orden', prefix: 
   .get(
     '/mis-ordenes/:id',
     async ({ companyId, params, ordenService, jsonOk }) => {
-      const orden = await ordenService.getMyOrdenById(companyId as string, params.id)
+      const orden = await ordenService.getMyOrdenById(companyId, params.id)
       return jsonOk(orden)
     },
     {
       params: idParams,
+      requireCompany: true,
       withRole: UserRole.OWNER,
       detail: {
         tags: ['Ordenes'],
@@ -116,12 +125,13 @@ export const ordenController = new Elysia({ name: '@app/modules/orden', prefix: 
   .patch(
     '/mis-ordenes/:id/pagar',
     async ({ companyId, params, body, ordenService, jsonOk }) => {
-      const orden = await ordenService.payMyOrden(companyId as string, params.id, body)
+      const orden = await ordenService.payMyOrden(companyId, params.id, body)
       return jsonOk(orden, 'Order paid successfully')
     },
     {
       params: idParams,
       body: payOrdenSchema,
+      requireCompany: true,
       withRole: UserRole.OWNER,
       detail: {
         tags: ['Ordenes'],
@@ -135,12 +145,13 @@ export const ordenController = new Elysia({ name: '@app/modules/orden', prefix: 
   .patch(
     '/mis-ordenes/:id/pagar-primera',
     async ({ companyId, params, body, ordenService, jsonOk }) => {
-      const orden = await ordenService.payMyFirstOrden(companyId as string, params.id, body)
+      const orden = await ordenService.payMyFirstOrden(companyId, params.id, body)
       return jsonOk(orden, 'Order paid successfully')
     },
     {
       params: idParams,
       body: payOrdenSchema,
+      requireCompany: true,
       withRole: UserRole.OWNER,
       detail: {
         tags: ['Ordenes'],

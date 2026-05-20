@@ -1,5 +1,6 @@
 import { UserRole } from '@gen/enums'
 import { NotFoundError } from '@/shared/domain/not-found-error'
+import type { Page, Pageable } from '@/shared/domain/pagination'
 import type { PasswordHasher } from '@/shared/domain/password-hasher'
 import { ValidationError } from '@/shared/domain/validation-error'
 import type { UpdateProfileInput, UpdateUserInput, User, UserWithCompany } from '../domain/entities'
@@ -14,8 +15,8 @@ export class UserService implements IUserService {
 
   // ── Admin CRUD ─────────────────────────────────────────
 
-  async listAdmins(page: number, pageSize: number): Promise<{ data: User[]; total: number }> {
-    return this.repo.findAllMasterAdmins(page, pageSize)
+  async listAdmins(pageable: Pageable): Promise<Page<User>> {
+    return this.repo.findAllMasterAdmins(pageable)
   }
 
   async createAdmin(input: CreateAdminInput): Promise<User> {
@@ -63,11 +64,8 @@ export class UserService implements IUserService {
 
   // ── Owner CRUD ─────────────────────────────────────────
 
-  async listOwners(
-    page: number,
-    pageSize: number,
-  ): Promise<{ data: UserWithCompany[]; total: number }> {
-    return this.repo.findAllOwners(page, pageSize)
+  async listOwners(pageable: Pageable): Promise<Page<UserWithCompany>> {
+    return this.repo.findAllOwners(pageable)
   }
 
   async createOwner(input: CreateOwnerInput): Promise<UserWithCompany> {

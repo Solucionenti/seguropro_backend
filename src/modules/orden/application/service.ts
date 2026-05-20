@@ -1,5 +1,6 @@
 import { OrdenStatus, SuscripcionStatus } from '@gen/enums'
 import { NotFoundError } from '@/shared/domain/not-found-error'
+import type { Page, Pageable } from '@/shared/domain/pagination'
 import { ValidationError } from '@/shared/domain/validation-error'
 import type {
   CreateOrdenInput,
@@ -9,7 +10,7 @@ import type {
   UpdateOrdenInput,
 } from '../domain/entities'
 import type { OrdenFilters, OrdenRepository } from '../domain/repository'
-import type { IOrdenService } from '../domain/service'
+import type { IOrdenService, OwnerOrdenFilters } from '../domain/service'
 import type { SuscripcionProvider } from '../domain/suscripcion-provider'
 
 const ACTIVE_SUSCRIPCION_STATUSES: SuscripcionStatus[] = [
@@ -23,12 +24,8 @@ export class OrdenService implements IOrdenService {
     private readonly suscripcionProvider: SuscripcionProvider,
   ) {}
 
-  async list(
-    page: number,
-    pageSize: number,
-    filters: OrdenFilters,
-  ): Promise<{ data: OrdenWithDetails[]; total: number }> {
-    return this.repo.findAll(page, pageSize, filters)
+  async list(pageable: Pageable, filters?: OrdenFilters): Promise<Page<OrdenWithDetails>> {
+    return this.repo.findAll(pageable, filters)
   }
 
   async create(input: CreateOrdenInput): Promise<OrdenWithDetails> {
@@ -91,11 +88,10 @@ export class OrdenService implements IOrdenService {
 
   async listMyOrdenes(
     companyId: string,
-    page: number,
-    pageSize: number,
-    filters: Pick<OrdenFilters, 'ordenStatus' | 'cicloInicio' | 'cicloFin'>,
-  ): Promise<{ data: OrdenWithDetails[]; total: number }> {
-    return this.repo.findAll(page, pageSize, { ...filters, companyId, active: true })
+    pageable: Pageable,
+    filters: OwnerOrdenFilters = {},
+  ): Promise<Page<OrdenWithDetails>> {
+    return this.repo.findAll(pageable, { ...filters, companyId, active: true })
   }
 
   async createMyOrden(companyId: string, input: CreateOwnerOrdenInput): Promise<OrdenWithDetails> {

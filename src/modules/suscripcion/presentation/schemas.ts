@@ -1,5 +1,5 @@
 import { z } from 'zod'
-import { paginationQuery } from '@/shared/utils/pagination'
+import { listQuery } from '@/shared/utils/pagination'
 
 export const suscripcionStatusEnum = z.enum([
   'TRIAL',
@@ -9,7 +9,7 @@ export const suscripcionStatusEnum = z.enum([
   'SUSPENDIDA',
 ])
 
-export const listSuscripcionQuerySchema = paginationQuery.extend({
+export const listSuscripcionQuerySchema = listQuery({
   companyId: z.string().uuid().optional(),
   suscripcionStatus: suscripcionStatusEnum.optional(),
   active: z.coerce.boolean().optional(),

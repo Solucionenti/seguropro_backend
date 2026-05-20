@@ -47,6 +47,13 @@ enum OrdenStatus {
   CANCELADA
 }
 
+enum PolizaStatus {
+  VIGENTE
+  VENCIDA
+  CANCELADA
+  RENOVADA
+}
+
 model Company {
   id               String       @id @default(uuid())
   razonSocial      String?
@@ -64,6 +71,9 @@ model Company {
 
   users         User[]
   suscripciones Suscripcion[]
+  aseguradoras  Aseguradora[]
+  ramos         Ramo[]
+  polizas       Poliza[]
 
   @@map("companies")
 }
@@ -78,12 +88,15 @@ model User {
   phone        String
   passwordHash String
   lastLoginAt  DateTime?
+  active       Boolean   @default(true)
 
   status    ResourceStatus @default(ACTIVE)
   createdAt DateTime       @default(now())
   updatedAt DateTime       @updatedAt
 
-  company Company? @relation(fields: [companyId], references: [id])
+  company            Company?        @relation(fields: [companyId], references: [id])
+  polizasComoCliente Poliza[]        @relation("PolizaCliente")
+  detalleCliente     DetalleCliente?
 
   @@unique([companyId, email], name: "company_email_unique")
   @@map("users")
@@ -153,4 +166,89 @@ model Orden {
   suscripcion Suscripcion @relation(fields: [suscripcionId], references: [id])
 
   @@map("ordenes")
+}
+
+model Aseguradora {
+  id          String  @id @default(uuid())
+  companyId   String
+  nombre      String
+  descripcion String?
+  active      Boolean @default(true)
+
+  status    ResourceStatus @default(ACTIVE)
+  createdAt DateTime       @default(now())
+  updatedAt DateTime       @updatedAt
+
+  company Company  @relation(fields: [companyId], references: [id])
+  polizas Poliza[]
+
+  @@unique([companyId, nombre], name: "company_nombre_unique")
+  @@map("aseguradoras")
+}
+
+model Ramo {
+  id          String  @id @default(uuid())
+  companyId   String
+  nombre      String
+  descripcion String?
+  active      Boolean @default(true)
+
+  status    ResourceStatus @default(ACTIVE)
+  createdAt DateTime       @default(now())
+  updatedAt DateTime       @updatedAt
+
+  company Company  @relation(fields: [companyId], references: [id])
+  polizas Poliza[]
+
+  @@unique([companyId, nombre], name: "ramo_company_nombre_unique")
+  @@map("ramos")
+}
+
+model Poliza {
+  id               String       @id @default(uuid())
+  companyId        String
+  aseguradoraId    String
+  ramoId           String
+  clienteUserId    String
+  numeroPoliza     String
+  fechaInicio      DateTime
+  fechaVencimiento DateTime
+  primaNeta        Float
+  primaTotal       Float
+  polizaStatus     PolizaStatus @default(VIGENTE)
+  active           Boolean      @default(true)
+
+  status    ResourceStatus @default(ACTIVE)
+  createdAt DateTime       @default(now())
+  updatedAt DateTime       @updatedAt
+
+  company     Company     @relation(fields: [companyId], references: [id])
+  aseguradora Aseguradora @relation(fields: [aseguradoraId], references: [id])
+  ramo        Ramo        @relation(fields: [ramoId], references: [id])
+  cliente     User        @relation("PolizaCliente", fields: [clienteUserId], references: [id])
+
+  @@unique([companyId, numeroPoliza], name: "poliza_company_numero_unique")
+  @@index([companyId, clienteUserId])
+  @@map("polizas")
+}
+
+model DetalleCliente {
+  id              String    @id @default(uuid())
+  userId          String    @unique
+  fechaNacimiento DateTime?
+  rfc             String?
+  curp            String?
+  direccion       String?
+  ciudad          String?
+  estado          String?
+  codigoPostal    String?
+  notas           String?
+
+  status    ResourceStatus @default(ACTIVE)
+  createdAt DateTime       @default(now())
+  updatedAt DateTime       @updatedAt
+
+  user User @relation(fields: [userId], references: [id])
+
+  @@map("detalle_clientes")
 }

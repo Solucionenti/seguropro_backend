@@ -1,4 +1,5 @@
 import type { UserModel } from '@gen/models/User'
+import type { Page, Pageable } from '@/shared/domain/pagination'
 import type {
   CompanyInput,
   UpdateProfileInput,
@@ -16,13 +17,13 @@ export type CreateOwnerInput = CreateAdminInput & {
 }
 
 export interface IUserService {
-  listAdmins(page: number, pageSize: number): Promise<{ data: User[]; total: number }>
+  listAdmins(pageable: Pageable): Promise<Page<User>>
   createAdmin(input: CreateAdminInput): Promise<User>
   getAdmin(id: string): Promise<User>
   updateAdmin(id: string, input: UpdateUserInput): Promise<User>
   deleteAdmin(id: string): Promise<void>
 
-  listOwners(page: number, pageSize: number): Promise<{ data: UserWithCompany[]; total: number }>
+  listOwners(pageable: Pageable): Promise<Page<UserWithCompany>>
   createOwner(input: CreateOwnerInput): Promise<UserWithCompany>
   getOwner(id: string): Promise<UserWithCompany>
   updateOwner(id: string, input: UpdateUserInput): Promise<User>

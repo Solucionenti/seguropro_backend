@@ -1,9 +1,9 @@
 import { z } from 'zod'
-import { paginationQuery } from '@/shared/utils/pagination'
+import { listQuery } from '@/shared/utils/pagination'
 
 export const ordenStatusEnum = z.enum(['PENDIENTE', 'PAGADA', 'FALLIDA', 'CANCELADA'])
 
-export const listOrdenQuerySchema = paginationQuery.extend({
+export const listOrdenQuerySchema = listQuery({
   companyId: z.string().uuid().optional(),
   ordenStatus: ordenStatusEnum.optional(),
   cicloInicio: z.coerce.date().optional(),
@@ -22,7 +22,7 @@ export const createOrdenSchema = z.object({
   proveedorPagoId: z.string().optional(),
 })
 
-export const listOwnerOrdenQuerySchema = paginationQuery.extend({
+export const listOwnerOrdenQuerySchema = listQuery({
   ordenStatus: ordenStatusEnum.optional(),
   cicloInicio: z.coerce.date().optional(),
   cicloFin: z.coerce.date().optional(),
