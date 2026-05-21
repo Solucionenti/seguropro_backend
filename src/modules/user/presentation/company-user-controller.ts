@@ -42,6 +42,24 @@ export const companyUserController = new Elysia({
           },
         },
       )
+      .get(
+        '/agentes',
+        async ({ companyId, pageable, companyUserService, jsonOk }) => {
+          const page = await companyUserService.listCompanyAgents(companyId, pageable)
+          return jsonOk(page)
+        },
+        {
+          query: pageableSchema,
+          paginated: { sortFields: USER_SORT_FIELDS },
+          requireCompany: true,
+          withRole: [UserRole.OWNER],
+          detail: {
+            tags: ['Company Users'],
+            summary: 'List company agents',
+            description: 'Returns only AGENT users.',
+          },
+        },
+      )
       .post(
         '/agentes',
         async ({ companyId, body, companyUserService, jsonOk }) => {

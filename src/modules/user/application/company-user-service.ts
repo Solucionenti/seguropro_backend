@@ -55,6 +55,10 @@ export class CompanyUserService implements ICompanyUserService {
     return this.repo.findCompanyUsers(companyId, pageable, roles)
   }
 
+  async listCompanyAgents(companyId: string, pageable: Pageable): Promise<Page<User>> {
+    return this.repo.findCompanyUsers(companyId, pageable, [UserRole.AGENT])
+  }
+
   async createAgent(companyId: string, input: CreateAgentInput): Promise<UserWithDetalle> {
     await this.validatePlanLimit(companyId)
 
