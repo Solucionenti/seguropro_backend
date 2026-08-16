@@ -10,6 +10,8 @@
 - **OpenAPI**: `@elysiajs/openapi` with Scalar UI at `/openapi`
 - **Database**: PostgreSQL + Prisma ORM `7.4.1` (Rust-free engine, `prisma-client` generator, `@prisma/adapter-pg`)
 - **JWT**: `jose 6.2.0` (direct dependency). Do NOT use `@elysiajs/jwt`.
+- **Email**: Resend HTTP API called with plain `fetch`. Do NOT install the `resend` SDK.
+- **Email templates**: React Email (`@react-email/components 1.0.12` + `@react-email/render 2.1.0`, `react 19.2.8`). `.tsx` files under `src/shared/infrastructure/emails/`.
 - **Testing**: `bun test` (Bun's native test runner)
 - **Linting/Formatting**: Biome `2.4.4`
 
@@ -34,8 +36,9 @@ src/
 │           ├── controller.ts        # Elysia routes (thin handlers only)
 │           └── schemas.ts           # Zod schemas for body/query/params
 └── shared/
-    ├── domain/                      # app-error, base-entity, error subclasses, jwt-service, password-hasher, Pageable/Page
-    ├── infrastructure/              # BunPasswordHasher, JoseJwtService
+    ├── domain/                      # app-error, base-entity, error subclasses, jwt-service, password-hasher, email-sender, Pageable/Page
+    ├── infrastructure/              # BunPasswordHasher, JoseJwtService, ResendEmailSender
+    │   └── emails/                  # React Email .tsx templates
     ├── middleware/                  # error-handler plugin
     ├── routers/
     │   ├── public-router.ts         # dbPlugin + errorHandler + responsePlugin + paginated macro
@@ -53,7 +56,9 @@ prisma/schema.prisma                 # Single source of truth for models and enu
 | Module | Routes | Auth |
 |--------|--------|------|
 | `health` | `GET /api/v1/health` | Public |
-| `auth` | `POST /api/v1/auth/identify`, `POST /api/v1/auth/login` | Public |
+| `auth` | `POST /api/v1/auth/identify`, `POST /api/v1/auth/login`, `POST /api/v1/auth/refresh` | Public |
+| | `POST /api/v1/auth/forgot-password`, `POST /api/v1/auth/reset-password` | Public |
+| | `POST /api/v1/auth/register-owner` | Public |
 | `user` | `GET/POST /api/v1/users/admins`, `GET/PATCH/DELETE /api/v1/users/admins/:id` | `MASTER_ADMIN` |
 | | `GET/POST /api/v1/users/owners`, `GET/PATCH/DELETE /api/v1/users/owners/:id` | `MASTER_ADMIN` |
 | | `GET/PATCH /api/v1/users/me` | Any authenticated user |
@@ -97,6 +102,10 @@ Enums: `UserRole` (MASTER_ADMIN, OWNER, AGENT, CLIENT) · `ResourceStatus` (ACTI
 | `JWT_SECRET` | required (≥32 chars) | JWT signing secret |
 | `JWT_ACCESS_EXPIRATION` | `15m` | Access token TTL |
 | `JWT_REFRESH_EXPIRATION` | `7d` | Refresh token TTL |
+| `PASSWORD_RESET_EXPIRATION` | `15m` | Password reset token TTL |
+| `RESEND_API_KEY` | required | Resend API key |
+| `EMAIL_FROM` | required | Sender address, e.g. `Segur <no-reply@domain.com>` |
+| `APP_URL` | `http://localhost:5173` | Frontend base URL used to build the reset link |
 | `PAGINATION_DEFAULT_PAGE_SIZE` | `20` | Default page size |
 | `PAGINATION_MAX_PAGE_SIZE` | `100` | Max page size |
 
@@ -138,6 +147,11 @@ bun run db:studio     # Open Prisma Studio
 ### Elysia Plugin Naming
 All Elysia instances MUST use: `@app/[module]/[name]`
 - Examples: `@app/config/db`, `@app/modules/health`, `@app/shared/response`
+
+### Error Handler
+- `errorHandler` (`src/shared/middleware/error-handler.ts`) MUST register its `onError` with `{ as: 'global' }`. Elysia plugin hooks are **local** by default: without it the handler never runs, and every `AppError` (401/403/404) is returned as raw text with status 500.
+- Being global, the hook also receives Elysia's built-in errors (`NOT_FOUND`, `VALIDATION`, `PARSE`). Their status codes MUST be preserved — never collapse them into 500.
+- `tests/e2e/error-shape.test.ts` locks both behaviors in.
 
 ### Response Shape
 ALL endpoints MUST return `ApiResponse<T>`:
@@ -225,6 +239,14 @@ NEVER hand-compute `skip`/`take` or hardcode `orderBy: { createdAt: 'desc' }` �
 - Auth resolution: `authRouter` uses `.resolve()` to verify Bearer token and attach `userId`, `userRole`, `companyId`.
 - Role check: `withRole` macro on route options. No DB lookup — role trusted from JWT.
 - `MASTER_ADMIN` users have `companyId = null` (platform-level).
+
+### Password Reset
+- Stateless: NO `password_reset_tokens` table. The token is a JWT signed with `JWT_SECRET`.
+- Reset token claims: `sub` (userId), `typ: 'pwd_reset'`, `pwd` (SHA-256 fingerprint of the current `passwordHash`). The `typ` claim prevents an access/refresh token from being used as a reset token and vice versa.
+- Single-use by construction: saving the new password changes the hash, so the fingerprint no longer matches and the token stops validating. No cleanup job needed.
+- The token does NOT carry `companyId` — `sub` already identifies one user in one company. Since the same email can exist in several companies, `POST /auth/forgot-password` sends ONE email per matching active account, each with its own token.
+- `POST /auth/forgot-password` ALWAYS returns the same 200 response whether or not the email exists (no account enumeration).
+- `EmailSender` port lives in `shared/domain/email-sender.ts`; `ResendEmailSender` renders the React Email template and POSTs to the Resend API. Application layer never touches HTML or React.
 
 ### Multi-Tenant Model
 - All data queries in tenant-scoped modules MUST be filtered by `companyId`.

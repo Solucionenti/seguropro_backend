@@ -1,6 +1,6 @@
 import { ResourceStatus, UserRole } from '@gen/enums'
 import type { AppPrismaClient } from '@/config/database'
-import type { AuthUser, AuthUserProvider } from '../domain/auth-user-provider'
+import type { AuthUser, AuthUserProvider, AuthUserWithCompany } from '../domain/auth-user-provider'
 
 export class PrismaAuthUserProvider implements AuthUserProvider {
   constructor(private readonly prisma: AppPrismaClient) {}
@@ -49,6 +49,33 @@ export class PrismaAuthUserProvider implements AuthUserProvider {
         companyId: u.companyId,
         nombreComercial: u.company?.nombreComercial ?? null,
       }))
+  }
+
+  async findActiveByEmail(email: string): Promise<AuthUserWithCompany[]> {
+    const users = await this.prisma.user.findMany({
+      where: { email, status: ResourceStatus.ACTIVE },
+      omit: { passwordHash: false },
+      include: { company: { select: { nombreComercial: true } } },
+    })
+
+    return users.map(({ company, ...user }) => ({
+      ...user,
+      companyName: company?.nombreComercial ?? null,
+    }))
+  }
+
+  async findActiveById(userId: string): Promise<AuthUser | null> {
+    return this.prisma.user.findFirst({
+      where: { id: userId, status: ResourceStatus.ACTIVE },
+      omit: { passwordHash: false },
+    })
+  }
+
+  async updatePasswordHash(userId: string, passwordHash: string): Promise<void> {
+    await this.prisma.user.update({
+      where: { id: userId },
+      data: { passwordHash },
+    })
   }
 
   async updateLastLogin(userId: string, timestamp: Date): Promise<void> {

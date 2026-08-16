@@ -23,3 +23,8 @@ export interface RefreshResult {
   accessToken: string
   refreshToken: string
 }
+
+export interface ResetPasswordInput {
+  token: string
+  password: string
+}

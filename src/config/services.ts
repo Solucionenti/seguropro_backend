@@ -29,6 +29,7 @@ import { PrismaUserRepository } from '@/modules/user/infrastructure/prisma-repo'
 import { PrismaSuscripcionPlanProvider } from '@/modules/user/infrastructure/prisma-suscripcion-plan-provider'
 import { BunPasswordHasher } from '@/shared/infrastructure/bun-password-hasher'
 import { JoseJwtService } from '@/shared/infrastructure/jose-jwt-service'
+import { ResendEmailSender } from '@/shared/infrastructure/resend-email-sender'
 
 // --- Instantiation (wiring) ---
 
@@ -52,13 +53,21 @@ const jwtService = new JoseJwtService({
   secret: envConfig.JWT_SECRET,
   accessExpiration: envConfig.JWT_ACCESS_EXPIRATION,
   refreshExpiration: envConfig.JWT_REFRESH_EXPIRATION,
+  passwordResetExpiration: envConfig.PASSWORD_RESET_EXPIRATION,
+})
+const emailSender = new ResendEmailSender({
+  apiKey: envConfig.RESEND_API_KEY,
+  from: envConfig.EMAIL_FROM,
 })
 const suscripcionPlanProvider = new PrismaSuscripcionPlanProvider(prisma)
 const aseguradoraService = new AseguradoraService(aseguradoraRepo)
 const userService = new UserService(userRepo, passwordHasher)
 const companyUserService = new CompanyUserService(userRepo, passwordHasher, suscripcionPlanProvider)
 const healthService = new HealthService(healthRepo)
-const authService = new AuthService(authUserProvider, passwordHasher, jwtService)
+const authService = new AuthService(authUserProvider, passwordHasher, jwtService, emailSender, {
+  appUrl: envConfig.APP_URL,
+  expiresIn: envConfig.PASSWORD_RESET_EXPIRATION,
+})
 const planService = new PlanService(planRepo)
 const suscripcionService = new SuscripcionService(suscripcionRepo, companyProvider, planProvider)
 const ordenService = new OrdenService(ordenRepo, suscripcionProvider)

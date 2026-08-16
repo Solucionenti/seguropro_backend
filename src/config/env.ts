@@ -7,6 +7,10 @@ const envSchema = z.object({
   JWT_SECRET: z.string().min(32, 'JWT_SECRET must be at least 32 characters'),
   JWT_ACCESS_EXPIRATION: z.string().default('15m'),
   JWT_REFRESH_EXPIRATION: z.string().default('7d'),
+  PASSWORD_RESET_EXPIRATION: z.string().default('15m'),
+  RESEND_API_KEY: z.string().min(1, 'RESEND_API_KEY is required'),
+  EMAIL_FROM: z.string().min(1, 'EMAIL_FROM is required'),
+  APP_URL: z.string().url('APP_URL must be a valid URL').default('http://localhost:5173'),
   PAGINATION_DEFAULT_PAGE_SIZE: z.coerce.number().int().min(1).default(20),
   PAGINATION_MAX_PAGE_SIZE: z.coerce.number().int().min(1).default(100),
 })
