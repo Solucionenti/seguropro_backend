@@ -1,16 +1,30 @@
 import { ResourceStatus } from '@gen/enums'
+import type { EmailSender } from '@/shared/domain/email-sender'
 import type { JwtService } from '@/shared/domain/jwt-service'
 import type { PasswordHasher } from '@/shared/domain/password-hasher'
 import { UnauthorizedError } from '@/shared/domain/unauthorized-error'
 import type { IAuthService } from '../domain/auth-service'
 import type { AuthUserProvider } from '../domain/auth-user-provider'
-import type { IdentifyResult, LoginInput, LoginResult, RefreshResult } from '../domain/entities'
+import type {
+  IdentifyResult,
+  LoginInput,
+  LoginResult,
+  RefreshResult,
+  ResetPasswordInput,
+} from '../domain/entities'
+
+interface PasswordResetConfig {
+  appUrl: string
+  expiresIn: string
+}
 
 export class AuthService implements IAuthService {
   constructor(
     private readonly authUserProvider: AuthUserProvider,
     private readonly passwordHasher: PasswordHasher,
     private readonly jwtService: JwtService,
+    private readonly emailSender: EmailSender,
+    private readonly passwordResetConfig: PasswordResetConfig,
   ) {}
 
   async login(input: LoginInput): Promise<LoginResult> {
@@ -68,5 +82,49 @@ export class AuthService implements IAuthService {
       role: payload.role,
       companyId: payload.companyId,
     })
+  }
+
+  // El mismo email puede existir en varias companies: se envía un correo por
+  // cuenta, cada uno con su propio token ligado a ese userId.
+  async forgotPassword(email: string): Promise<void> {
+    const users = await this.authUserProvider.findActiveByEmail(email)
+
+    await Promise.all(
+      users.map(async (user) => {
+        const token = await this.jwtService.signPasswordResetToken(user.id, user.passwordHash)
+
+        await this.emailSender.sendPasswordReset({
+          to: user.email,
+          firstName: user.firstName,
+          companyName: user.companyName,
+          resetUrl: `${this.passwordResetConfig.appUrl}/reset-password?token=${encodeURIComponent(token)}`,
+          expiresIn: this.passwordResetConfig.expiresIn,
+        })
+      }),
+    )
+  }
+
+  async resetPassword(input: ResetPasswordInput): Promise<void> {
+    const claims = await this.jwtService.verifyPasswordResetToken(input.token)
+
+    if (!claims) {
+      throw new UnauthorizedError('Invalid or expired reset token')
+    }
+
+    const user = await this.authUserProvider.findActiveById(claims.sub)
+
+    if (!user || user.status !== ResourceStatus.ACTIVE) {
+      throw new UnauthorizedError('Invalid or expired reset token')
+    }
+
+    // El fingerprint cambia al guardar la nueva contraseña: token de un solo uso.
+    const fingerprint = await this.jwtService.passwordFingerprint(user.passwordHash)
+
+    if (fingerprint !== claims.pwd) {
+      throw new UnauthorizedError('Invalid or expired reset token')
+    }
+
+    const passwordHash = await this.passwordHasher.hash(input.password)
+    await this.authUserProvider.updatePasswordHash(user.id, passwordHash)
   }
 }

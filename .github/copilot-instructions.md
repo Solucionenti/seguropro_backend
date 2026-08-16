@@ -10,6 +10,8 @@
 - **OpenAPI**: `@elysiajs/openapi` with Scalar UI at `/openapi`
 - **Database**: PostgreSQL + Prisma ORM (Rust-free engine, `prisma-client` generator, `@prisma/adapter-pg`)
 - **JWT**: `jose` library (direct dependency). Do NOT use `@elysiajs/jwt` — it couples JWT logic to Elysia context and breaks clean architecture.
+- **Email**: Resend HTTP API called with plain `fetch`. Do NOT install the `resend` SDK — it is a thin wrapper over the same endpoint.
+- **Email templates**: React Email (`@react-email/components` + `@react-email/render`, `react`). Templates are `.tsx` files under `src/shared/infrastructure/emails/`. `tsconfig.json` sets `jsx: react-jsx` and includes `src/**/*.tsx`.
 - **Testing**: `bun test` (Bun's native test runner)
 - **Linting/Formatting**: Biome v2
 
@@ -33,6 +35,11 @@
 ### Elysia Plugin Naming
 - All Elysia plugin instances MUST use the naming convention: `@app/[module]/[name]`
 - Examples: `@app/config/db`, `@app/modules/health`, `@app/shared/response`
+
+### Error Handler
+- `errorHandler` (`src/shared/middleware/error-handler.ts`) MUST register its `onError` with `{ as: 'global' }` — signature is `.onError({ as: 'global' }, handler)`. Elysia plugin hooks are **local** by default: without it the handler silently never runs, and every `AppError` (401/403/404) leaks as raw text with status 500.
+- Because it is global, the hook also receives Elysia's own errors (`NOT_FOUND`, `VALIDATION`, `PARSE`, `INVALID_COOKIE_SIGNATURE`). Map each to its real status code — never collapse them into 500.
+- `tests/e2e/error-shape.test.ts` guards both behaviors. Do not delete it.
 
 ### Response Shape
 - ALL API endpoints MUST return the standard `ApiResponse<T>` shape:
@@ -115,6 +122,15 @@
 - **Auth resolution**: `authRouter` (`src/shared/routers/auth-router.ts`) uses `.resolve()` to extract Bearer token, verify JWT, and attach `userId`, `userRole`, `companyId` to handler context. Throws `UnauthorizedError` on failure.
 - **Role-based access**: `authRouter` provides a `withRole` macro. Use it in route options: `{ withRole: 'OWNER' }` or `{ withRole: ['OWNER', 'MASTER_ADMIN'] }`. Throws `ForbiddenError` (403) if the user's JWT role doesn't match. No DB check — role is trusted from the JWT.
 - Protected controllers `.use(authRouter)` to get auth context automatically.
+
+### Password Reset
+- **Stateless**: there is NO `password_reset_tokens` table and no cleanup job. The reset token is a JWT signed with `JWT_SECRET`, TTL from `PASSWORD_RESET_EXPIRATION` (default `15m`).
+- **Claims**: `sub` (userId), `typ: 'pwd_reset'`, `pwd` (SHA-256 fingerprint of the user's current `passwordHash`). The `typ` claim is what stops an access/refresh token being replayed as a reset token and vice versa — never drop it.
+- **Single-use by construction**: saving the new password changes the hash, so the fingerprint no longer matches and the token stops validating. Do NOT add a "used" flag or table.
+- **No `companyId` in the token**: `sub` already identifies exactly one user in exactly one company. Because the same email can exist in several companies, `POST /auth/forgot-password` sends ONE email per matching ACTIVE account, each carrying its own token.
+- **No account enumeration**: `POST /auth/forgot-password` ALWAYS returns the same 200 response whether or not the email exists. Never branch the response on user existence.
+- **Email boundary**: `EmailSender` port in `src/shared/domain/email-sender.ts`; `ResendEmailSender` (`src/shared/infrastructure/resend-email-sender.ts`) renders the React Email template and POSTs to `https://api.resend.com/emails`. The application layer passes plain data only — never HTML, never React.
+- Sending is synchronous inside the request. Move to a queue only if request latency becomes a measured problem.
 
 ### Multi-Tenant Model
 - Each **Company (Empresa)** is an isolated tenant. All data queries must be scoped by `companyId`.
