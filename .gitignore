@@ -38,3 +38,5 @@ Thumbs.db
 skills-lock.json
 
 .vscode/
+# local file storage driver (dev)
+storage/

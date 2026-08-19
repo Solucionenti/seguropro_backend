@@ -11,20 +11,16 @@ export const archivoScopeParams = z.object({
   archivoId: z.string().uuid('Invalid archivo ID format'),
 })
 
-export const createArchivoPolizaSchema = z.object({
-  nombre: z.string().min(1, 'nombre is required').max(255),
-  mimeType: z.string().min(1, 'mimeType is required').max(120),
-  url: z.string().url('url must be a valid URL'),
-  tamanoBytes: z.number().int().nonnegative().optional(),
+export const uploadArchivoPolizaSchema = z.object({
+  file: z.instanceof(File, { message: 'file is required' }),
+  nombre: z.string().min(1).max(255).optional(),
 })
 
-export const updateArchivoPolizaSchema = z
-  .object({
-    nombre: z.string().min(1).max(255).optional(),
-    mimeType: z.string().min(1).max(120).optional(),
-    url: z.string().url('url must be a valid URL').optional(),
-    tamanoBytes: z.number().int().nonnegative().optional(),
-  })
-  .refine((data) => Object.values(data).some((value) => value !== undefined), {
-    message: 'At least one field must be provided',
-  })
+export const renameArchivoPolizaSchema = z.object({
+  nombre: z.string().min(1, 'nombre is required').max(255),
+})
+
+export const signedFileQuery = z.object({
+  expires: z.coerce.number().int(),
+  signature: z.string().min(1),
+})

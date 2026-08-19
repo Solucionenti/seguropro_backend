@@ -144,6 +144,19 @@
 - Access is scoped through the poliza and a foreign poliza yields `NotFoundError` (never `ForbiddenError`), so it is indistinguishable from a missing one.
 - Nested routes are `/polizas/:id/archivos/:archivoId`. Keep the poliza segment named `:id` — Elysia's router demands the same parameter name at the same position and `polizaController` already uses `/polizas/:id`.
 
+### File Storage
+- `FileStorage` port in `shared/domain/file-storage.ts`. Only `LocalDiskFileStorage` exists today (dev/demo, binaries on disk under `STORAGE_LOCAL_DIR`, gitignored).
+- Production = ONE more adapter. R2, Backblaze B2, Supabase Storage and AWS S3 are all S3-compatible, so a single `S3FileStorage` covers all four (endpoint changes only). Avoid Cloudinary: 10 MB raw-file cap on the free tier plus its own signed-url model.
+- Persist `storageKey`, NEVER a url — signed urls expire, so the url is derived on each read. `ArchivoPolizaView` carries `url` and no `storageKey`; never leak the key.
+- `GET /api/v1/files/:storageKey` is public on purpose: the HMAC `signature` + `expires` pair IS the authorization. It serves the local driver only.
+- Local keys are flat UUIDs matched against a regex — no directories, so no path traversal. Keep it that way.
+
+### Archivos de Poliza
+- Per RF-ARCH-02 the BACKEND uploads the binary: the client sends `multipart/form-data` with a `file` field, never a pre-existing url.
+- mimeType allow-list, max file size and plan storage limit all live in `ArchivoPolizaService`, not in the Zod schema.
+- `mimeType`, `storageKey` and `polizaId` are immutable; `PATCH` only renames. Replace a binary by uploading a new file and deactivating the old row.
+- Soft-delete keeps the binary in the storage provider on purpose, for traceability.
+
 ### Mi Empresa (RF-OWNER-09 / RF-OWNER-10)
 - `GET/PUT /companies/mi-empresa` take the company from the JWT `companyId`, never from the URL or body — an OWNER structurally cannot reach another tenant. Never add an id param to these routes.
 - `PUT` is a full replacement: `emailContacto` and `telefonoContacto` required, every other editable field nulled when omitted. Need a partial update? Add a separate `PATCH`, do not soften the `PUT`.

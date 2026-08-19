@@ -83,7 +83,8 @@ prisma/schema.prisma                 # Single source of truth for models and enu
 | `siniestro` | `GET /api/v1/siniestros`, `GET /api/v1/siniestros/:id` | `OWNER`, `AGENT`, `CLIENT` (own only) |
 | | `POST /api/v1/siniestros`, `PATCH/DELETE /api/v1/siniestros/:id` | `OWNER`, `AGENT` |
 | `archivo-poliza` | `GET /api/v1/polizas/:id/archivos`, `GET /api/v1/polizas/:id/archivos/:archivoId` | `OWNER`, `AGENT`, `CLIENT` (own polizas) |
-| | `POST /api/v1/polizas/:id/archivos`, `PATCH/DELETE /api/v1/polizas/:id/archivos/:archivoId` | `OWNER`, `AGENT` |
+| | `POST /api/v1/polizas/:id/archivos` (multipart), `PATCH/DELETE /api/v1/polizas/:id/archivos/:archivoId` | `OWNER`, `AGENT` |
+| | `GET /api/v1/files/:storageKey?expires=&signature=` | Public (signed url) |
 
 ## Current Prisma Models
 
@@ -104,8 +105,8 @@ Poliza       id, companyId, aseguradoraId, ramoId, clienteUserId, numeroPoliza, 
              kanbanId? · @@unique([companyId, numeroPoliza]) · @@index([companyId, clienteUserId]) · @@index([companyId, kanbanId])
 Siniestro    id, companyId, polizaId, clienteUserId, creadoPorUserId, tipoSiniestro?, fechaEvento, descripcion?, ajustador?, montoEstimado?, montoPagado?, siniestroStatus, active, status, createdAt, updatedAt
              @@index([companyId, polizaId]) · @@index([companyId, clienteUserId])
-ArchivoPoliza id, polizaId, nombre, mimeType, url, tamanoBytes?, active, status, createdAt, updatedAt
-             @@index([polizaId]) · only metadata + url; binaries live in the storage provider
+ArchivoPoliza id, polizaId, nombre, mimeType, storageKey, tamanoBytes, active, status, createdAt, updatedAt
+             @@index([polizaId]) · only metadata + storageKey; binaries live in the storage provider
 ```
 
 Enums: `UserRole` (MASTER_ADMIN, OWNER, AGENT, CLIENT) · `ResourceStatus` (ACTIVE, INACTIVE, DELETED) · `TipoPersona` (FISICA, MORAL) · `Periodicidad` (MENSUAL, TRIMESTRAL, SEMESTRAL, ANUAL) · `SuscripcionStatus` (TRIAL, ACTIVA, CANCELADA, VENCIDA, SUSPENDIDA) · `OrdenStatus` (PENDIENTE, PAGADA, FALLIDA, CANCELADA) · `PolizaStatus` (VIGENTE, VENCIDA, CANCELADA, RENOVADA) · `SiniestroStatus` (REPORTADO, EN_REVISION, APROBADO, RECHAZADO, PAGADO, CERRADO)
@@ -126,6 +127,11 @@ Enums: `UserRole` (MASTER_ADMIN, OWNER, AGENT, CLIENT) · `ResourceStatus` (ACTI
 | `APP_URL` | `http://localhost:5173` | Frontend base URL used to build the reset link |
 | `PAGINATION_DEFAULT_PAGE_SIZE` | `20` | Default page size |
 | `PAGINATION_MAX_PAGE_SIZE` | `100` | Max page size |
+| `API_URL` | `http://localhost:3000` | Public base URL of this API, used to build signed file urls |
+| `STORAGE_DRIVER` | `local` | File storage driver. Only `local` exists today |
+| `STORAGE_LOCAL_DIR` | `./storage` | Where the local driver writes binaries (gitignored) |
+| `STORAGE_SIGNED_URL_TTL_SECONDS` | `900` | Signed file url lifetime |
+| `STORAGE_MAX_FILE_SIZE_MB` | `10` | Per-file upload cap |
 
 ## Commands
 
@@ -274,9 +280,20 @@ NEVER hand-compute `skip`/`take` or hardcode `orderBy: { createdAt: 'desc' }` �
 - `companyId`, `polizaId` and `clienteUserId` are immutable after creation (they are not part of `UpdateSiniestroInput`).
 - CLIENT is read-only and only reaches siniestros linked to their own polizas.
 
+### File Storage
+- `FileStorage` port lives in `shared/domain/file-storage.ts`. The ONLY implementation today is `LocalDiskFileStorage` (`shared/infrastructure/`), which keeps binaries on disk under `STORAGE_LOCAL_DIR` (gitignored) and is meant for dev/demo.
+- Production means adding ONE more adapter. R2, Backblaze B2, Supabase Storage and AWS S3 are all S3-compatible, so a single `S3FileStorage` covers all four — only the endpoint changes. Do NOT reach for Cloudinary: it caps raw files (PDF) at 10 MB on the free tier and needs its own signed-url model.
+- The DB persists `storageKey`, NEVER a url: signed urls expire, so the url is derived on every read via `signedUrl()`. `ArchivoPolizaView` is what leaves the backend and it has `url` but no `storageKey` — never leak the key.
+- `GET /api/v1/files/:storageKey` is intentionally PUBLIC: the HMAC `signature` + `expires` pair IS the authorization. It only serves the local driver; a cloud provider signs and serves its own urls, so that route becomes dead weight once an S3 adapter is wired.
+- Local keys are flat UUIDs validated against a regex, so there are no directories and no path traversal to defend against. Keep it that way.
+
 ### Archivos de Poliza
-- The DB stores ONLY metadata (`nombre`, `mimeType`, `url`, `tamanoBytes`). Binaries NEVER touch the database: upload to the storage provider first, then POST the resulting `url`.
-- The allowed `mimeType` list lives in `ArchivoPolizaService` (application layer), NOT in the Zod schema, so the rule has a single owner.
+- Per RF-ARCH-02, THE BACKEND uploads the binary — the client sends `multipart/form-data` with a `file` field, not a pre-existing url.
+- The DB stores ONLY metadata (`nombre`, `mimeType`, `storageKey`, `tamanoBytes`). Binaries NEVER touch the database.
+- The allowed `mimeType` list, the max file size and the plan storage limit all live in `ArchivoPolizaService` (application layer), NOT in the Zod schema, so each rule has a single owner.
+- The plan storage cap comes from `PlanStorageProvider` (`limiteAlmacenamientoGB` of the active TRIAL/ACTIVA subscription). `null` means no cap and short-circuits before the usage query.
+- `mimeType`, `storageKey` and `polizaId` are immutable: `PATCH` only renames. To replace a binary, upload a new file and deactivate the old row.
+- Soft-deleting a row leaves the binary in the storage provider on purpose — the record is kept for traceability.
 - Every operation is scoped through the poliza: `assertPolizaAccessible` resolves the poliza by `companyId` (and by `clienteUserId` when the caller is a CLIENT) and throws `NotFoundError` — never `ForbiddenError` — so a foreign poliza is indistinguishable from a missing one.
 - Routes are nested as `/polizas/:id/archivos/:archivoId`. The poliza segment MUST stay named `:id`: Elysia's router requires the same parameter name at the same position, and `polizaController` already registers `/polizas/:id`.
 

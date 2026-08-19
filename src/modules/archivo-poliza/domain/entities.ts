@@ -6,18 +6,17 @@ export interface ArchivoPoliza
   extends BaseEntity,
     Pick<
       ArchivoPolizaModel,
-      'polizaId' | 'nombre' | 'mimeType' | 'url' | 'tamanoBytes' | 'active'
+      'polizaId' | 'nombre' | 'mimeType' | 'storageKey' | 'tamanoBytes' | 'active'
     > {}
+
+// what the api returns: the storageKey never leaves the backend, the url is signed on read
+export type ArchivoPolizaView = Omit<ArchivoPoliza, 'storageKey'> & { url: string }
 
 export type PolizaBasicInfo = Pick<PolizaModel, 'id' | 'companyId' | 'clienteUserId'>
 
 export type CreateArchivoPolizaInput = Pick<
   ArchivoPolizaModel,
-  'polizaId' | 'nombre' | 'mimeType' | 'url'
-> & {
-  tamanoBytes?: number | null
-}
-
-export type UpdateArchivoPolizaInput = Partial<
-  Pick<ArchivoPolizaModel, 'nombre' | 'mimeType' | 'url' | 'tamanoBytes'>
+  'polizaId' | 'nombre' | 'mimeType' | 'storageKey' | 'tamanoBytes'
 >
+
+export type UpdateArchivoPolizaInput = Partial<Pick<ArchivoPolizaModel, 'nombre'>>

@@ -33,29 +33,28 @@ export class PrismaArchivoPolizaRepository implements ArchivoPolizaRepository {
     })
   }
 
-  async create(input: CreateArchivoPolizaInput): Promise<ArchivoPoliza> {
-    return this.prisma.archivoPoliza.create({
-      data: {
-        polizaId: input.polizaId,
-        nombre: input.nombre,
-        mimeType: input.mimeType,
-        url: input.url,
-        tamanoBytes: input.tamanoBytes,
+  async sumBytesByCompany(companyId: string): Promise<number> {
+    const result = await this.prisma.archivoPoliza.aggregate({
+      where: {
+        status: ResourceStatus.ACTIVE,
+        active: true,
+        poliza: { companyId },
       },
+      _sum: { tamanoBytes: true },
     })
+
+    return result._sum.tamanoBytes ?? 0
+  }
+
+  async create(input: CreateArchivoPolizaInput): Promise<ArchivoPoliza> {
+    return this.prisma.archivoPoliza.create({ data: input })
   }
 
   async update(id: string, input: UpdateArchivoPolizaInput): Promise<ArchivoPoliza> {
-    return this.prisma.archivoPoliza.update({
-      where: { id },
-      data: input,
-    })
+    return this.prisma.archivoPoliza.update({ where: { id }, data: input })
   }
 
   async softDelete(id: string): Promise<void> {
-    await this.prisma.archivoPoliza.update({
-      where: { id },
-      data: { active: false },
-    })
+    await this.prisma.archivoPoliza.update({ where: { id }, data: { active: false } })
   }
 }

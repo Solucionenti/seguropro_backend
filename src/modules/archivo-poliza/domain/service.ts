@@ -1,5 +1,5 @@
 import type { Page, Pageable } from '@/shared/domain/pagination'
-import type { ArchivoPoliza } from './entities'
+import type { ArchivoPolizaView } from './entities'
 
 // clienteUserId set means the caller is a CLIENT and the poliza must be theirs
 export interface ArchivoPolizaScope {
@@ -8,28 +8,17 @@ export interface ArchivoPolizaScope {
   clienteUserId?: string
 }
 
-export interface CreateArchivoPolizaServiceInput {
-  nombre: string
+export interface UploadArchivoPolizaInput {
+  body: ArrayBuffer
+  originalName: string
   mimeType: string
-  url: string
-  tamanoBytes?: number
-}
-
-export interface UpdateArchivoPolizaServiceInput {
   nombre?: string
-  mimeType?: string
-  url?: string
-  tamanoBytes?: number
 }
 
 export interface IArchivoPolizaService {
-  list(scope: ArchivoPolizaScope, pageable: Pageable): Promise<Page<ArchivoPoliza>>
-  create(scope: ArchivoPolizaScope, input: CreateArchivoPolizaServiceInput): Promise<ArchivoPoliza>
-  getById(id: string, scope: ArchivoPolizaScope): Promise<ArchivoPoliza>
-  update(
-    id: string,
-    scope: ArchivoPolizaScope,
-    input: UpdateArchivoPolizaServiceInput,
-  ): Promise<ArchivoPoliza>
+  list(scope: ArchivoPolizaScope, pageable: Pageable): Promise<Page<ArchivoPolizaView>>
+  upload(scope: ArchivoPolizaScope, input: UploadArchivoPolizaInput): Promise<ArchivoPolizaView>
+  getById(id: string, scope: ArchivoPolizaScope): Promise<ArchivoPolizaView>
+  rename(id: string, scope: ArchivoPolizaScope, nombre: string): Promise<ArchivoPolizaView>
   softDelete(id: string, scope: ArchivoPolizaScope): Promise<void>
 }

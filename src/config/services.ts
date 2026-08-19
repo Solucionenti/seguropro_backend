@@ -2,6 +2,7 @@ import { Elysia } from 'elysia'
 import { prisma } from '@/config/database'
 import { envConfig } from '@/config/env'
 import { ArchivoPolizaService } from '@/modules/archivo-poliza/application/service'
+import { PrismaPlanStorageProvider } from '@/modules/archivo-poliza/infrastructure/prisma-plan-storage-provider'
 import { PrismaPolizaProvider as PrismaArchivoPolizaProvider } from '@/modules/archivo-poliza/infrastructure/prisma-poliza-provider'
 import { PrismaArchivoPolizaRepository } from '@/modules/archivo-poliza/infrastructure/prisma-repo'
 import { AseguradoraService } from '@/modules/aseguradora/application/service'
@@ -40,6 +41,7 @@ import { PrismaUserRepository } from '@/modules/user/infrastructure/prisma-repo'
 import { PrismaSuscripcionPlanProvider } from '@/modules/user/infrastructure/prisma-suscripcion-plan-provider'
 import { BunPasswordHasher } from '@/shared/infrastructure/bun-password-hasher'
 import { JoseJwtService } from '@/shared/infrastructure/jose-jwt-service'
+import { LocalDiskFileStorage } from '@/shared/infrastructure/local-disk-file-storage'
 import { ResendEmailSender } from '@/shared/infrastructure/resend-email-sender'
 
 // --- instantiation (wiring) ---
@@ -66,6 +68,14 @@ const siniestroRepo = new PrismaSiniestroRepository(prisma)
 const siniestroPolizaProvider = new PrismaPolizaProvider(prisma)
 const archivoPolizaRepo = new PrismaArchivoPolizaRepository(prisma)
 const archivoPolizaProvider = new PrismaArchivoPolizaProvider(prisma)
+const archivoPlanStorageProvider = new PrismaPlanStorageProvider(prisma)
+// swap this for an s3-compatible adapter (r2, b2, supabase, aws) when credentials exist
+const fileStorage = new LocalDiskFileStorage({
+  dir: envConfig.STORAGE_LOCAL_DIR,
+  apiUrl: envConfig.API_URL,
+  secret: envConfig.JWT_SECRET,
+  ttlSeconds: envConfig.STORAGE_SIGNED_URL_TTL_SECONDS,
+})
 const passwordHasher = new BunPasswordHasher()
 const jwtService = new JoseJwtService({
   secret: envConfig.JWT_SECRET,
@@ -100,7 +110,13 @@ const polizaService = new PolizaService(
 )
 const companyService = new CompanyService(companyRepo)
 const siniestroService = new SiniestroService(siniestroRepo, siniestroPolizaProvider)
-const archivoPolizaService = new ArchivoPolizaService(archivoPolizaRepo, archivoPolizaProvider)
+const archivoPolizaService = new ArchivoPolizaService(
+  archivoPolizaRepo,
+  archivoPolizaProvider,
+  fileStorage,
+  archivoPlanStorageProvider,
+  { maxFileSizeBytes: envConfig.STORAGE_MAX_FILE_SIZE_MB * 1024 * 1024 },
+)
 
 // --- per-module elysia service plugins ---
 // controllers use only the plugins they need
@@ -176,3 +192,7 @@ export const siniestroServicePlugin = new Elysia({ name: '@app/services/siniestr
 export const archivoPolizaServicePlugin = new Elysia({
   name: '@app/services/archivo-poliza',
 }).decorate('archivoPolizaService', archivoPolizaService)
+
+export const localFileStoragePlugin = new Elysia({
+  name: '@app/services/local-file-storage',
+}).decorate('localFileStorage', fileStorage)

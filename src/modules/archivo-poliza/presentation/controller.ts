@@ -5,9 +5,9 @@ import { authRouter } from '@/shared/routers/auth-router'
 import { pageableSchema } from '@/shared/utils/pagination'
 import {
   archivoScopeParams,
-  createArchivoPolizaSchema,
   polizaScopeParams,
-  updateArchivoPolizaSchema,
+  renameArchivoPolizaSchema,
+  uploadArchivoPolizaSchema,
 } from './schemas'
 
 const ARCHIVO_SORT_FIELDS = ['createdAt', 'updatedAt', 'nombre', 'mimeType'] as const
@@ -39,7 +39,7 @@ export const archivoPolizaController = new Elysia({
         tags: ['Archivos de Poliza'],
         summary: 'List poliza files',
         description:
-          'Returns a paginated list of files attached to a poliza. CLIENT can only list files of their own polizas.',
+          'Returns a paginated list of files attached to a poliza. Every item carries a freshly signed, expiring url. CLIENT can only list files of their own polizas.',
       },
     },
   )
@@ -47,19 +47,28 @@ export const archivoPolizaController = new Elysia({
   .post(
     '/',
     async ({ params, body, companyId, archivoPolizaService, jsonOk }) => {
-      const archivo = await archivoPolizaService.create({ polizaId: params.id, companyId }, body)
-      return jsonOk(archivo, 'Archivo created successfully')
+      const archivo = await archivoPolizaService.upload(
+        { polizaId: params.id, companyId },
+        {
+          body: await body.file.arrayBuffer(),
+          originalName: body.file.name,
+          mimeType: body.file.type,
+          nombre: body.nombre,
+        },
+      )
+      return jsonOk(archivo, 'Archivo uploaded successfully')
     },
     {
       params: polizaScopeParams,
-      body: createArchivoPolizaSchema,
+      body: uploadArchivoPolizaSchema,
+      type: 'multipart/form-data',
       requireCompany: true,
       withRole: [UserRole.OWNER, UserRole.AGENT],
       detail: {
         tags: ['Archivos de Poliza'],
-        summary: 'Attach a file to a poliza',
+        summary: 'Upload a file to a poliza',
         description:
-          'Registers file metadata (nombre, mimeType, url, tamanoBytes) for a poliza. Binaries are never stored in the database: upload the file to the storage provider first and send its url here. mimeType must be one of the allowed document/image types.',
+          'Uploads the file to the storage provider and stores only its metadata. Send multipart/form-data with a `file` field and an optional `nombre`. Rejects a mimeType outside the allow-list, an empty file, a file over the size cap, and a company that would exceed its plan storage limit.',
       },
     },
   )
@@ -83,7 +92,7 @@ export const archivoPolizaController = new Elysia({
         tags: ['Archivos de Poliza'],
         summary: 'Get poliza file detail',
         description:
-          'Returns metadata of one file. CLIENT can only access files of their own polizas.',
+          'Returns the file metadata plus a freshly signed, expiring url. CLIENT can only access files of their own polizas.',
       },
     },
   )
@@ -91,23 +100,23 @@ export const archivoPolizaController = new Elysia({
   .patch(
     '/:archivoId',
     async ({ params, body, companyId, archivoPolizaService, jsonOk }) => {
-      const archivo = await archivoPolizaService.update(
+      const archivo = await archivoPolizaService.rename(
         params.archivoId,
         { polizaId: params.id, companyId },
-        body,
+        body.nombre,
       )
       return jsonOk(archivo, 'Archivo updated successfully')
     },
     {
       params: archivoScopeParams,
-      body: updateArchivoPolizaSchema,
+      body: renameArchivoPolizaSchema,
       requireCompany: true,
       withRole: [UserRole.OWNER, UserRole.AGENT],
       detail: {
         tags: ['Archivos de Poliza'],
-        summary: 'Update poliza file metadata',
+        summary: 'Rename a poliza file',
         description:
-          'Updates nombre, mimeType, url and/or tamanoBytes. A file cannot be moved to a different poliza.',
+          'Renames the file. mimeType, storageKey and polizaId are immutable: to replace the binary, upload a new file and deactivate this one.',
       },
     },
   )
@@ -129,7 +138,7 @@ export const archivoPolizaController = new Elysia({
         tags: ['Archivos de Poliza'],
         summary: 'Deactivate poliza file',
         description:
-          'Soft-deletes (deactivates) the file record. The record is kept for traceability; the physical file in storage is not touched.',
+          'Soft-deletes the file record. The record is kept for traceability and the binary is left in the storage provider.',
       },
     },
   )
