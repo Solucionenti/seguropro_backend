@@ -5,6 +5,8 @@ import { AseguradoraService } from '@/modules/aseguradora/application/service'
 import { PrismaAseguradoraRepository } from '@/modules/aseguradora/infrastructure/prisma-repo'
 import { AuthService } from '@/modules/auth/application/service'
 import { PrismaAuthUserProvider } from '@/modules/auth/infrastructure/prisma-auth-user-provider'
+import { CompanyService } from '@/modules/company/application/service'
+import { PrismaCompanyRepository } from '@/modules/company/infrastructure/prisma-repo'
 import { HealthService } from '@/modules/health/application/service'
 import { PrismaHealthRepository } from '@/modules/health/infrastructure/prisma-repo'
 import { OrdenService } from '@/modules/orden/application/service'
@@ -19,6 +21,9 @@ import { PrismaRamoProvider } from '@/modules/poliza/infrastructure/prisma-ramo-
 import { PrismaPolizaRepository } from '@/modules/poliza/infrastructure/prisma-repo'
 import { RamoService } from '@/modules/ramo/application/service'
 import { PrismaRamoRepository } from '@/modules/ramo/infrastructure/prisma-repo'
+import { SiniestroService } from '@/modules/siniestro/application/service'
+import { PrismaPolizaProvider } from '@/modules/siniestro/infrastructure/prisma-poliza-provider'
+import { PrismaSiniestroRepository } from '@/modules/siniestro/infrastructure/prisma-repo'
 import { SuscripcionService } from '@/modules/suscripcion/application/service'
 import { PrismaCompanyProvider } from '@/modules/suscripcion/infrastructure/prisma-company-provider'
 import { PrismaPlanProvider } from '@/modules/suscripcion/infrastructure/prisma-plan-provider'
@@ -48,6 +53,9 @@ const polizaRepo = new PrismaPolizaRepository(prisma)
 const polizaAseguradoraProvider = new PrismaAseguradoraProvider(prisma)
 const polizaRamoProvider = new PrismaRamoProvider(prisma)
 const polizaClienteProvider = new PrismaClienteUserProvider(prisma)
+const companyRepo = new PrismaCompanyRepository(prisma)
+const siniestroRepo = new PrismaSiniestroRepository(prisma)
+const siniestroPolizaProvider = new PrismaPolizaProvider(prisma)
 const passwordHasher = new BunPasswordHasher()
 const jwtService = new JoseJwtService({
   secret: envConfig.JWT_SECRET,
@@ -78,6 +86,8 @@ const polizaService = new PolizaService(
   polizaRamoProvider,
   polizaClienteProvider,
 )
+const companyService = new CompanyService(companyRepo)
+const siniestroService = new SiniestroService(siniestroRepo, siniestroPolizaProvider)
 
 // --- Per-module Elysia service plugins ---
 // Controllers `.use()` only the plugins they need.
@@ -135,3 +145,13 @@ export const polizaServicePlugin = new Elysia({ name: '@app/services/poliza' }).
 export const companyUserServicePlugin = new Elysia({
   name: '@app/services/company-user',
 }).decorate('companyUserService', companyUserService)
+
+export const companyServicePlugin = new Elysia({ name: '@app/services/company' }).decorate(
+  'companyService',
+  companyService,
+)
+
+export const siniestroServicePlugin = new Elysia({ name: '@app/services/siniestro' }).decorate(
+  'siniestroService',
+  siniestroService,
+)
