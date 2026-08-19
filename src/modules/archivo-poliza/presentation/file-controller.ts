@@ -5,6 +5,25 @@ import { UnauthorizedError } from '@/shared/domain/unauthorized-error'
 import { publicRouter } from '@/shared/routers/public-router'
 import { signedFileQuery } from './schemas'
 
+// serving octet-stream would force a download, so a pdf could never render inline.
+// the key keeps the original extension, which is enough to answer the right type
+const CONTENT_TYPE_BY_EXTENSION: Record<string, string> = {
+  '.pdf': 'application/pdf',
+  '.jpg': 'image/jpeg',
+  '.jpeg': 'image/jpeg',
+  '.png': 'image/png',
+  '.webp': 'image/webp',
+  '.doc': 'application/msword',
+  '.docx': 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+  '.xls': 'application/vnd.ms-excel',
+  '.xlsx': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+}
+
+function contentTypeFor(storageKey: string): string {
+  const extension = storageKey.slice(storageKey.lastIndexOf('.')).toLowerCase()
+  return CONTENT_TYPE_BY_EXTENSION[extension] ?? 'application/octet-stream'
+}
+
 // public on purpose: the hmac signature in the query string IS the authorization,
 // which is what makes the url shareable and short lived
 export const fileController = new Elysia({
@@ -31,7 +50,7 @@ export const fileController = new Elysia({
         throw new NotFoundError('File')
       }
 
-      set.headers['content-type'] = 'application/octet-stream'
+      set.headers['content-type'] = contentTypeFor(params.storageKey)
       return new Response(body)
     },
     {

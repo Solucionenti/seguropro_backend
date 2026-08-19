@@ -14,6 +14,9 @@ interface LocalDiskConfig {
 const KEY_PATTERN = /^[0-9a-f-]{36}(\.[a-z0-9]{1,12})?$/i
 
 export class LocalDiskFileStorage implements FileStorage {
+  // imported once: listing a page of files signs one url per row
+  private hmacKey?: Promise<CryptoKey>
+
   constructor(private readonly config: LocalDiskConfig) {}
 
   async upload({ body, originalName }: UploadFileInput): Promise<StoredFile> {
@@ -69,16 +72,17 @@ export class LocalDiskFileStorage implements FileStorage {
   }
 
   private async sign(storageKey: string, expiresAt: number): Promise<string> {
-    const key = await crypto.subtle.importKey(
+    this.hmacKey ??= crypto.subtle.importKey(
       'raw',
       new TextEncoder().encode(this.config.secret),
       { name: 'HMAC', hash: 'SHA-256' },
       false,
       ['sign'],
     )
+
     const mac = await crypto.subtle.sign(
       'HMAC',
-      key,
+      await this.hmacKey,
       new TextEncoder().encode(`${storageKey}:${expiresAt}`),
     )
 
