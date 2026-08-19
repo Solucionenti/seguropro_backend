@@ -68,7 +68,8 @@ prisma/schema.prisma                 # Single source of truth for models and enu
 | | `POST /api/v1/users/mis-usuarios/agentes` | `OWNER` |
 | `company` | `GET /api/v1/companies`, `GET /api/v1/companies/:id` | `MASTER_ADMIN` |
 | | `GET /api/v1/companies/mi-empresa`, `PUT /api/v1/companies/mi-empresa` | `OWNER` |
-| `plan` | `GET/POST /api/v1/plans`, `GET/PATCH /api/v1/plans/:id`, `DELETE /api/v1/plans/deactivate/:id` | `MASTER_ADMIN` |
+| `plan` | `POST /api/v1/plans`, `PATCH /api/v1/plans/:id`, `DELETE /api/v1/plans/deactivate/:id` | `MASTER_ADMIN` |
+| | `GET /api/v1/plans`, `GET /api/v1/plans/:id` | `MASTER_ADMIN`, `OWNER` |
 | `suscripcion` | `GET/POST /api/v1/suscripciones`, `GET/PATCH/DELETE /api/v1/suscripciones/:id` | `MASTER_ADMIN` |
 | | `GET/POST/DELETE /api/v1/suscripciones/mi-suscripcion`, `POST /api/v1/suscripciones/mi-suscripcion-con-orden` | `OWNER` |
 | `orden` | `GET/POST /api/v1/ordenes`, `GET/PATCH/DELETE /api/v1/ordenes/:id` | `MASTER_ADMIN` |
