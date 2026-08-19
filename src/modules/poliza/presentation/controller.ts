@@ -84,6 +84,53 @@ export const polizaController = new Elysia({
     },
   )
 
+  // `/mis-polizas` se registra antes de `/:id` para que la ruta estática gane.
+  .get(
+    '/mis-polizas',
+    async ({ query, pageable, companyId, userId, polizaService, jsonOk }) => {
+      const page = await polizaService.list(pageable, {
+        companyId,
+        clienteUserId: userId,
+        aseguradoraId: query.aseguradoraId,
+        ramoId: query.ramoId,
+        polizaStatus: query.polizaStatus,
+        numeroPoliza: query.numeroPoliza,
+      })
+      return jsonOk(page)
+    },
+    {
+      query: polizaListQuery,
+      paginated: { sortFields: POLIZA_SORT_FIELDS },
+      requireCompany: true,
+      withRole: UserRole.CLIENT,
+      detail: {
+        tags: ['Polizas'],
+        summary: 'List my polizas (CLIENT)',
+        description:
+          'Returns a paginated list of the authenticated CLIENT own polizas. The clienteUserId filter comes from the JWT, never from the query string.',
+      },
+    },
+  )
+
+  .get(
+    '/mis-polizas/:id',
+    async ({ params, companyId, userId, polizaService, jsonOk }) => {
+      const poliza = await polizaService.getById(params.id, companyId, userId)
+      return jsonOk(poliza)
+    },
+    {
+      params: idParams,
+      requireCompany: true,
+      withRole: UserRole.CLIENT,
+      detail: {
+        tags: ['Polizas'],
+        summary: 'Get my poliza detail (CLIENT)',
+        description:
+          'Returns full details of one of the authenticated CLIENT own polizas. Returns 404 when the poliza belongs to another cliente.',
+      },
+    },
+  )
+
   .get(
     '/:id',
     async ({ params, companyId, userId, userRole, polizaService, jsonOk }) => {

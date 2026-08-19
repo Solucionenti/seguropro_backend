@@ -66,7 +66,8 @@ prisma/schema.prisma                 # Single source of truth for models and enu
 | | `POST /api/v1/users/mis-usuarios/clientes` | `OWNER`, `AGENT` |
 | | `GET /api/v1/users/mis-usuarios/agentes`, `GET /api/v1/users/mis-usuarios/clientes` | `OWNER` |
 | | `POST /api/v1/users/mis-usuarios/agentes` | `OWNER` |
-| `plan` | `GET/POST /api/v1/planes`, `GET/PATCH/DELETE /api/v1/planes/:id` | `MASTER_ADMIN` |
+| `company` | `GET /api/v1/companies`, `GET /api/v1/companies/:id` | `MASTER_ADMIN` |
+| `plan` | `GET/POST /api/v1/plans`, `GET/PATCH /api/v1/plans/:id`, `DELETE /api/v1/plans/deactivate/:id` | `MASTER_ADMIN` |
 | `suscripcion` | `GET/POST /api/v1/suscripciones`, `GET/PATCH/DELETE /api/v1/suscripciones/:id` | `MASTER_ADMIN` |
 | | `GET/POST/DELETE /api/v1/suscripciones/mi-suscripcion`, `POST /api/v1/suscripciones/mi-suscripcion-con-orden` | `OWNER` |
 | `orden` | `GET/POST /api/v1/ordenes`, `GET/PATCH/DELETE /api/v1/ordenes/:id` | `MASTER_ADMIN` |
@@ -76,7 +77,12 @@ prisma/schema.prisma                 # Single source of truth for models and enu
 | `ramo` | `GET/POST /api/v1/ramos`, `GET/PATCH/DELETE /api/v1/ramos/:id` | `OWNER`, `AGENT` |
 | `poliza` | `GET /api/v1/polizas`, `GET /api/v1/polizas/:id` | `OWNER`, `AGENT`, `CLIENT` (own only) |
 | | `POST /api/v1/polizas`, `PATCH/DELETE /api/v1/polizas/:id`, `PATCH /api/v1/polizas/:id/kanban` | `OWNER`, `AGENT` |
+| | `GET /api/v1/polizas/mis-polizas`, `GET /api/v1/polizas/mis-polizas/:id` | `CLIENT` |
 | `columna-kanban` | `GET/POST /api/v1/columnas-kanban`, `GET/PATCH/DELETE /api/v1/columnas-kanban/:id` | `OWNER`, `AGENT` |
+| `siniestro` | `GET /api/v1/siniestros`, `GET /api/v1/siniestros/:id` | `OWNER`, `AGENT`, `CLIENT` (own only) |
+| | `POST /api/v1/siniestros`, `PATCH/DELETE /api/v1/siniestros/:id` | `OWNER`, `AGENT` |
+| `archivo-poliza` | `GET /api/v1/polizas/:id/archivos`, `GET /api/v1/polizas/:id/archivos/:archivoId` | `OWNER`, `AGENT`, `CLIENT` (own polizas) |
+| | `POST /api/v1/polizas/:id/archivos`, `PATCH/DELETE /api/v1/polizas/:id/archivos/:archivoId` | `OWNER`, `AGENT` |
 
 ## Current Prisma Models
 
@@ -95,9 +101,13 @@ ColumnaKanban id, companyId, nombre, prioridad, status, createdAt, updatedAt
              @@unique([companyId, prioridad]) · physical delete; related Poliza.kanbanId is set to NULL
 Poliza       id, companyId, aseguradoraId, ramoId, clienteUserId, numeroPoliza, fechaInicio, fechaVencimiento, primaNeta, primaTotal, polizaStatus, active, status, createdAt, updatedAt
              kanbanId? · @@unique([companyId, numeroPoliza]) · @@index([companyId, clienteUserId]) · @@index([companyId, kanbanId])
+Siniestro    id, companyId, polizaId, clienteUserId, creadoPorUserId, tipoSiniestro?, fechaEvento, descripcion?, ajustador?, montoEstimado?, montoPagado?, siniestroStatus, active, status, createdAt, updatedAt
+             @@index([companyId, polizaId]) · @@index([companyId, clienteUserId])
+ArchivoPoliza id, polizaId, nombre, mimeType, url, tamanoBytes?, active, status, createdAt, updatedAt
+             @@index([polizaId]) · only metadata + url; binaries live in the storage provider
 ```
 
-Enums: `UserRole` (MASTER_ADMIN, OWNER, AGENT, CLIENT) · `ResourceStatus` (ACTIVE, INACTIVE, DELETED) · `TipoPersona` (FISICA, MORAL) · `Periodicidad` (MENSUAL, TRIMESTRAL, SEMESTRAL, ANUAL) · `SuscripcionStatus` (TRIAL, ACTIVA, CANCELADA, VENCIDA, SUSPENDIDA) · `OrdenStatus` (PENDIENTE, PAGADA, FALLIDA, CANCELADA) · `PolizaStatus` (VIGENTE, VENCIDA, CANCELADA, RENOVADA)
+Enums: `UserRole` (MASTER_ADMIN, OWNER, AGENT, CLIENT) · `ResourceStatus` (ACTIVE, INACTIVE, DELETED) · `TipoPersona` (FISICA, MORAL) · `Periodicidad` (MENSUAL, TRIMESTRAL, SEMESTRAL, ANUAL) · `SuscripcionStatus` (TRIAL, ACTIVA, CANCELADA, VENCIDA, SUSPENDIDA) · `OrdenStatus` (PENDIENTE, PAGADA, FALLIDA, CANCELADA) · `PolizaStatus` (VIGENTE, VENCIDA, CANCELADA, RENOVADA) · `SiniestroStatus` (REPORTADO, EN_REVISION, APROBADO, RECHAZADO, PAGADO, CERRADO)
 
 ## Environment Variables
 
@@ -255,6 +265,19 @@ NEVER hand-compute `skip`/`take` or hardcode `orderBy: { createdAt: 'desc' }` �
 - The token does NOT carry `companyId` — `sub` already identifies one user in one company. Since the same email can exist in several companies, `POST /auth/forgot-password` sends ONE email per matching active account, each with its own token.
 - `POST /auth/forgot-password` ALWAYS returns the same 200 response whether or not the email exists (no account enumeration).
 - `EmailSender` port lives in `shared/domain/email-sender.ts`; `ResendEmailSender` renders the React Email template and POSTs to the Resend API. Application layer never touches HTML or React.
+
+### Siniestros
+- `clienteUserId` is ALWAYS derived from the poliza inside `SiniestroService.create` — never accepted from the request body. The client of a claim is whoever owns the policy.
+- `creadoPorUserId` comes from the JWT (`userId`), not from the body.
+- `fechaEvento` MUST fall inside the poliza coverage window (`fechaInicio..fechaVencimiento`) and MUST NOT be in the future. Relaxing this is a business decision, not a bug fix.
+- `companyId`, `polizaId` and `clienteUserId` are immutable after creation (they are not part of `UpdateSiniestroInput`).
+- CLIENT is read-only and only reaches siniestros linked to their own polizas.
+
+### Archivos de Poliza
+- The DB stores ONLY metadata (`nombre`, `mimeType`, `url`, `tamanoBytes`). Binaries NEVER touch the database: upload to the storage provider first, then POST the resulting `url`.
+- The allowed `mimeType` list lives in `ArchivoPolizaService` (application layer), NOT in the Zod schema, so the rule has a single owner.
+- Every operation is scoped through the poliza: `assertPolizaAccessible` resolves the poliza by `companyId` (and by `clienteUserId` when the caller is a CLIENT) and throws `NotFoundError` — never `ForbiddenError` — so a foreign poliza is indistinguishable from a missing one.
+- Routes are nested as `/polizas/:id/archivos/:archivoId`. The poliza segment MUST stay named `:id`: Elysia's router requires the same parameter name at the same position, and `polizaController` already registers `/polizas/:id`.
 
 ### Multi-Tenant Model
 - All data queries in tenant-scoped modules MUST be filtered by `companyId`.

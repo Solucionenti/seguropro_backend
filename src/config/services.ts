@@ -1,6 +1,9 @@
 import { Elysia } from 'elysia'
 import { prisma } from '@/config/database'
 import { envConfig } from '@/config/env'
+import { ArchivoPolizaService } from '@/modules/archivo-poliza/application/service'
+import { PrismaPolizaProvider as PrismaArchivoPolizaProvider } from '@/modules/archivo-poliza/infrastructure/prisma-poliza-provider'
+import { PrismaArchivoPolizaRepository } from '@/modules/archivo-poliza/infrastructure/prisma-repo'
 import { AseguradoraService } from '@/modules/aseguradora/application/service'
 import { PrismaAseguradoraRepository } from '@/modules/aseguradora/infrastructure/prisma-repo'
 import { AuthService } from '@/modules/auth/application/service'
@@ -61,6 +64,8 @@ const polizaKanbanProvider = new PrismaKanbanProvider(prisma)
 const companyRepo = new PrismaCompanyRepository(prisma)
 const siniestroRepo = new PrismaSiniestroRepository(prisma)
 const siniestroPolizaProvider = new PrismaPolizaProvider(prisma)
+const archivoPolizaRepo = new PrismaArchivoPolizaRepository(prisma)
+const archivoPolizaProvider = new PrismaArchivoPolizaProvider(prisma)
 const passwordHasher = new BunPasswordHasher()
 const jwtService = new JoseJwtService({
   secret: envConfig.JWT_SECRET,
@@ -95,6 +100,7 @@ const polizaService = new PolizaService(
 )
 const companyService = new CompanyService(companyRepo)
 const siniestroService = new SiniestroService(siniestroRepo, siniestroPolizaProvider)
+const archivoPolizaService = new ArchivoPolizaService(archivoPolizaRepo, archivoPolizaProvider)
 
 // --- Per-module Elysia service plugins ---
 // Controllers `.use()` only the plugins they need.
@@ -166,3 +172,7 @@ export const siniestroServicePlugin = new Elysia({ name: '@app/services/siniestr
   'siniestroService',
   siniestroService,
 )
+
+export const archivoPolizaServicePlugin = new Elysia({
+  name: '@app/services/archivo-poliza',
+}).decorate('archivoPolizaService', archivoPolizaService)

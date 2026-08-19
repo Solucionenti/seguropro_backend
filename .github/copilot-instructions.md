@@ -133,6 +133,17 @@
 - **Email boundary**: `EmailSender` port in `src/shared/domain/email-sender.ts`; `ResendEmailSender` (`src/shared/infrastructure/resend-email-sender.ts`) renders the React Email template and POSTs to `https://api.resend.com/emails`. The application layer passes plain data only — never HTML, never React.
 - Sending is synchronous inside the request. Move to a queue only if request latency becomes a measured problem.
 
+### Siniestros
+- `clienteUserId` is ALWAYS derived from the poliza inside `SiniestroService.create`, never taken from the request body — the claim belongs to whoever owns the policy. `creadoPorUserId` comes from the JWT.
+- `fechaEvento` MUST be inside the poliza coverage window (`fechaInicio..fechaVencimiento`) and MUST NOT be in the future.
+- `companyId`, `polizaId` and `clienteUserId` are immutable after creation. CLIENT is read-only and scoped to their own polizas.
+
+### Archivos de Poliza
+- Only metadata is persisted (`nombre`, `mimeType`, `url`, `tamanoBytes`). Never store binaries in the DB — upload to the storage provider and send the `url`.
+- The allowed `mimeType` allow-list lives in `ArchivoPolizaService` (application layer), not in the Zod schema.
+- Access is scoped through the poliza and a foreign poliza yields `NotFoundError` (never `ForbiddenError`), so it is indistinguishable from a missing one.
+- Nested routes are `/polizas/:id/archivos/:archivoId`. Keep the poliza segment named `:id` — Elysia's router demands the same parameter name at the same position and `polizaController` already uses `/polizas/:id`.
+
 ### Multi-Tenant Model
 - Each **Company (Empresa)** is an isolated tenant. All data queries must be scoped by `companyId`.
 - Users are unique per company: `@@unique([companyId, email])`. The same email can exist in multiple companies.
