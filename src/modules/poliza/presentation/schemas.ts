@@ -30,6 +30,12 @@ export const updatePolizaSchema = z
     { message: 'At least one field must be provided' },
   )
 
+export const updatePolizaKanbanSchema = z
+  .object({
+    kanbanId: z.string().uuid('Invalid kanbanId').nullable(),
+  })
+  .strict()
+
 export const polizaListQuery = listQuery({
   numeroPoliza: z.string().optional(),
   aseguradoraId: z.string().uuid().optional(),

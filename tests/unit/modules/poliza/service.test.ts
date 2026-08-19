@@ -6,9 +6,11 @@ import type { ClienteUserProvider } from '@/modules/poliza/domain/cliente-user-p
 import type {
   AseguradoraBasicInfo,
   ClienteBasicInfo,
+  ColumnaKanbanBasicInfo,
   PolizaWithDetails,
   RamoBasicInfo,
 } from '@/modules/poliza/domain/entities'
+import type { KanbanProvider } from '@/modules/poliza/domain/kanban-provider'
 import type { RamoProvider } from '@/modules/poliza/domain/ramo-provider'
 import type { PolizaRepository } from '@/modules/poliza/domain/repository'
 import { NotFoundError } from '@/shared/domain/not-found-error'
@@ -35,6 +37,12 @@ const clienteStub: ClienteBasicInfo = {
   lastName: 'Lopez',
   email: 'ana@example.com',
 }
+const kanbanStub: ColumnaKanbanBasicInfo = {
+  id: 'kanban-1',
+  companyId: 'company-1',
+  nombre: 'Prospectos',
+  prioridad: 1,
+}
 
 function createMockPoliza(overrides: Partial<PolizaWithDetails> = {}): PolizaWithDetails {
   return {
@@ -49,6 +57,7 @@ function createMockPoliza(overrides: Partial<PolizaWithDetails> = {}): PolizaWit
     primaNeta: 1000,
     primaTotal: 1160,
     polizaStatus: PolizaStatus.VIGENTE,
+    kanban: kanbanStub,
     active: true,
     status: ResourceStatus.ACTIVE,
     createdAt: new Date('2026-01-01'),
@@ -67,6 +76,7 @@ function createMocks() {
     findByNumeroAndCompany: mock(() => Promise.resolve(null)),
     create: mock(() => Promise.resolve(createMockPoliza())),
     update: mock(() => Promise.resolve(createMockPoliza())),
+    updateKanban: mock(() => Promise.resolve(createMockPoliza())),
     softDelete: mock(() => Promise.resolve()),
   }
   const aseguradoraProvider: Mocked<AseguradoraProvider> = {
@@ -78,7 +88,10 @@ function createMocks() {
   const clienteProvider: Mocked<ClienteUserProvider> = {
     findActiveClientForCompany: mock(() => Promise.resolve(clienteStub)),
   }
-  return { repo, aseguradoraProvider, ramoProvider, clienteProvider }
+  const kanbanProvider: Mocked<KanbanProvider> = {
+    findActiveByIdForCompany: mock(() => Promise.resolve(kanbanStub)),
+  }
+  return { repo, aseguradoraProvider, ramoProvider, clienteProvider, kanbanProvider }
 }
 
 const baseCreateInput = {
@@ -104,6 +117,7 @@ describe('PolizaService', () => {
       mocks.aseguradoraProvider,
       mocks.ramoProvider,
       mocks.clienteProvider,
+      mocks.kanbanProvider,
     )
   })
 
@@ -271,6 +285,55 @@ describe('PolizaService', () => {
     it('should throw NotFoundError when missing', async () => {
       expect(service.softDelete('missing', 'company-1')).rejects.toThrow(NotFoundError)
       expect(mocks.repo.softDelete).not.toHaveBeenCalled()
+    })
+  })
+
+  describe('updateKanban', () => {
+    it('should update only the Kanban column', async () => {
+      const existing = createMockPoliza()
+      mocks.repo.findById.mockResolvedValue(existing)
+      mocks.repo.updateKanban.mockResolvedValue({ ...existing, kanban: kanbanStub })
+
+      const result = await service.updateKanban('poliza-1', 'company-1', {
+        kanbanId: 'kanban-1',
+      })
+
+      expect(result.kanban?.id).toBe('kanban-1')
+      expect(mocks.kanbanProvider.findActiveByIdForCompany).toHaveBeenCalledWith(
+        'kanban-1',
+        'company-1',
+      )
+      expect(mocks.repo.updateKanban).toHaveBeenCalledWith('poliza-1', {
+        kanbanId: 'kanban-1',
+      })
+    })
+
+    it('should allow clearing the Kanban column', async () => {
+      const existing = createMockPoliza()
+      mocks.repo.findById.mockResolvedValue(existing)
+      mocks.repo.updateKanban.mockResolvedValue({ ...existing, kanban: null })
+
+      await service.updateKanban('poliza-1', 'company-1', { kanbanId: null })
+
+      expect(mocks.kanbanProvider.findActiveByIdForCompany).not.toHaveBeenCalled()
+      expect(mocks.repo.updateKanban).toHaveBeenCalledWith('poliza-1', { kanbanId: null })
+    })
+
+    it('should reject a Kanban column from another company', async () => {
+      mocks.repo.findById.mockResolvedValue(createMockPoliza())
+      mocks.kanbanProvider.findActiveByIdForCompany.mockResolvedValue(null)
+
+      expect(
+        service.updateKanban('poliza-1', 'company-1', { kanbanId: 'other-company-kanban' }),
+      ).rejects.toThrow(ValidationError)
+      expect(mocks.repo.updateKanban).not.toHaveBeenCalled()
+    })
+
+    it('should throw NotFoundError when the poliza does not exist', async () => {
+      expect(
+        service.updateKanban('missing', 'company-1', { kanbanId: 'kanban-1' }),
+      ).rejects.toThrow(NotFoundError)
+      expect(mocks.kanbanProvider.findActiveByIdForCompany).not.toHaveBeenCalled()
     })
   })
 })

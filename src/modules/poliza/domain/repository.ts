@@ -1,6 +1,11 @@
 import type { PolizaStatus } from '@gen/enums'
 import type { Page, Pageable } from '@/shared/domain/pagination'
-import type { CreatePolizaInput, PolizaWithDetails, UpdatePolizaInput } from './entities'
+import type {
+  CreatePolizaInput,
+  PolizaWithDetails,
+  UpdatePolizaInput,
+  UpdatePolizaKanbanInput,
+} from './entities'
 
 export interface PolizaFilters {
   companyId: string
@@ -17,5 +22,6 @@ export interface PolizaRepository {
   findByNumeroAndCompany(numeroPoliza: string, companyId: string): Promise<PolizaWithDetails | null>
   create(input: CreatePolizaInput): Promise<PolizaWithDetails>
   update(id: string, input: UpdatePolizaInput): Promise<PolizaWithDetails>
+  updateKanban(id: string, input: UpdatePolizaKanbanInput): Promise<PolizaWithDetails>
   softDelete(id: string): Promise<void>
 }
