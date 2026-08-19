@@ -2,13 +2,25 @@ import type { Prisma } from '@gen/client'
 import { ResourceStatus } from '@gen/enums'
 import type { AppPrismaClient } from '@/config/database'
 import { Page, type Pageable } from '@/shared/domain/pagination'
-import type { CreatePolizaInput, PolizaWithDetails, UpdatePolizaInput } from '../domain/entities'
+import type {
+  CreatePolizaInput,
+  PolizaWithDetails,
+  UpdatePolizaInput,
+  UpdatePolizaKanbanInput,
+} from '../domain/entities'
 import type { PolizaFilters, PolizaRepository } from '../domain/repository'
 
 const aseguradoraSelect = {
   id: true,
   companyId: true,
   nombre: true,
+} as const
+
+const kanbanSelect = {
+  id: true,
+  companyId: true,
+  nombre: true,
+  prioridad: true,
 } as const
 
 const ramoSelect = {
@@ -27,6 +39,7 @@ const clienteSelect = {
 
 const includeDetails = {
   aseguradora: { select: aseguradoraSelect },
+  kanban: { select: kanbanSelect },
   ramo: { select: ramoSelect },
   cliente: { select: clienteSelect },
 } as const
@@ -106,6 +119,14 @@ export class PrismaPolizaRepository implements PolizaRepository {
   }
 
   async update(id: string, input: UpdatePolizaInput): Promise<PolizaWithDetails> {
+    return this.prisma.poliza.update({
+      where: { id },
+      data: input,
+      include: includeDetails,
+    })
+  }
+
+  async updateKanban(id: string, input: UpdatePolizaKanbanInput): Promise<PolizaWithDetails> {
     return this.prisma.poliza.update({
       where: { id },
       data: input,

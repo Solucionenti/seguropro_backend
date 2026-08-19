@@ -4,12 +4,14 @@ import { ValidationError } from '@/shared/domain/validation-error'
 import type { AseguradoraProvider } from '../domain/aseguradora-provider'
 import type { ClienteUserProvider } from '../domain/cliente-user-provider'
 import type { PolizaWithDetails } from '../domain/entities'
+import type { KanbanProvider } from '../domain/kanban-provider'
 import type { RamoProvider } from '../domain/ramo-provider'
 import type { PolizaRepository } from '../domain/repository'
 import type {
   CreatePolizaServiceInput,
   IPolizaService,
   ListPolizasFilters,
+  UpdatePolizaKanbanServiceInput,
   UpdatePolizaServiceInput,
 } from '../domain/service'
 
@@ -19,6 +21,7 @@ export class PolizaService implements IPolizaService {
     private readonly aseguradoraProvider: AseguradoraProvider,
     private readonly ramoProvider: RamoProvider,
     private readonly clienteProvider: ClienteUserProvider,
+    private readonly kanbanProvider: KanbanProvider,
   ) {}
 
   async list(pageable: Pageable, filters: ListPolizasFilters): Promise<Page<PolizaWithDetails>> {
@@ -100,6 +103,23 @@ export class PolizaService implements IPolizaService {
     }
 
     return this.repo.update(id, input)
+  }
+
+  async updateKanban(
+    id: string,
+    companyId: string,
+    input: UpdatePolizaKanbanServiceInput,
+  ): Promise<PolizaWithDetails> {
+    await this.getById(id, companyId)
+
+    if (input.kanbanId !== null) {
+      const kanban = await this.kanbanProvider.findActiveByIdForCompany(input.kanbanId, companyId)
+      if (!kanban) {
+        throw new ValidationError('Kanban column not found for this company')
+      }
+    }
+
+    return this.repo.updateKanban(id, input)
   }
 
   async softDelete(id: string, companyId: string): Promise<void> {

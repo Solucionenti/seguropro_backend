@@ -3,7 +3,12 @@ import { Elysia } from 'elysia'
 import { polizaServicePlugin } from '@/config/services'
 import { authRouter } from '@/shared/routers/auth-router'
 import { idParams } from '@/shared/utils/pagination'
-import { createPolizaSchema, polizaListQuery, updatePolizaSchema } from './schemas'
+import {
+  createPolizaSchema,
+  polizaListQuery,
+  updatePolizaKanbanSchema,
+  updatePolizaSchema,
+} from './schemas'
 
 const POLIZA_SORT_FIELDS = [
   'createdAt',
@@ -114,6 +119,26 @@ export const polizaController = new Elysia({
         summary: 'Update poliza',
         description:
           'Updates primaNeta, primaTotal, fechaVencimiento and/or polizaStatus. fechaVencimiento must be greater than or equal to fechaInicio.',
+      },
+    },
+  )
+
+  .patch(
+    '/:id/kanban',
+    async ({ params, body, companyId, polizaService, jsonOk }) => {
+      const poliza = await polizaService.updateKanban(params.id, companyId, body)
+      return jsonOk(poliza, 'Poliza Kanban column updated successfully')
+    },
+    {
+      params: idParams,
+      body: updatePolizaKanbanSchema,
+      requireCompany: true,
+      withRole: [UserRole.OWNER, UserRole.AGENT],
+      detail: {
+        tags: ['Polizas'],
+        summary: 'Update only the Kanban column of a poliza',
+        description:
+          'Assigns or unassigns a poliza Kanban column without modifying any other poliza field.',
       },
     },
   )

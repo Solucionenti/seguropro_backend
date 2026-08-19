@@ -2,7 +2,13 @@ import { Elysia } from 'elysia'
 import { authServicePlugin, userServicePlugin } from '@/config/services'
 import { createOwnerSchema } from '@/modules/user/presentation/schemas'
 import { publicRouter } from '@/shared/routers/public-router'
-import { identifySchema, loginSchema, refreshSchema } from './schemas'
+import {
+  forgotPasswordSchema,
+  identifySchema,
+  loginSchema,
+  refreshSchema,
+  resetPasswordSchema,
+} from './schemas'
 
 export const authController = new Elysia({
   name: '@app/modules/auth',
@@ -55,6 +61,39 @@ export const authController = new Elysia({
         tags: ['Auth'],
         summary: 'Refresh tokens',
         description: 'Exchange a valid refresh token for a new access/refresh token pair.',
+      },
+    },
+  )
+  .post(
+    '/forgot-password',
+    async ({ body, authService, jsonOkNoData }) => {
+      await authService.forgotPassword(body.email)
+      // Respuesta idéntica exista o no la cuenta: evita enumeración de usuarios.
+      return jsonOkNoData('If the email exists, a reset link has been sent')
+    },
+    {
+      body: forgotPasswordSchema,
+      detail: {
+        tags: ['Auth'],
+        summary: 'Request password reset',
+        description:
+          'Sends a password reset link to the email. If the email is registered in several companies, one email is sent per account. Always returns the same response regardless of whether the email exists.',
+      },
+    },
+  )
+  .post(
+    '/reset-password',
+    async ({ body, authService, jsonOkNoData }) => {
+      await authService.resetPassword(body)
+      return jsonOkNoData('Password updated successfully')
+    },
+    {
+      body: resetPasswordSchema,
+      detail: {
+        tags: ['Auth'],
+        summary: 'Reset password',
+        description:
+          'Sets a new password using the token from the reset email. The token is single-use: it stops validating once the password changes.',
       },
     },
   )

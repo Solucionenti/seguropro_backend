@@ -69,11 +69,12 @@ model Company {
   createdAt DateTime       @default(now())
   updatedAt DateTime       @updatedAt
 
-  users         User[]
-  suscripciones Suscripcion[]
-  aseguradoras  Aseguradora[]
-  ramos         Ramo[]
-  polizas       Poliza[]
+  users          User[]
+  suscripciones  Suscripcion[]
+  aseguradoras   Aseguradora[]
+  ramos          Ramo[]
+  columnasKanban ColumnaKanban[]
+  polizas        Poliza[]
 
   @@map("companies")
 }
@@ -204,12 +205,31 @@ model Ramo {
   @@map("ramos")
 }
 
+model ColumnaKanban {
+  id        String @id @default(uuid())
+  companyId String
+  nombre    String
+  prioridad Int
+
+  status    ResourceStatus @default(ACTIVE)
+  createdAt DateTime       @default(now())
+  updatedAt DateTime       @updatedAt
+
+  company Company  @relation(fields: [companyId], references: [id])
+  polizas Poliza[]
+
+  @@unique([companyId, prioridad], name: "columna_kanban_company_prioridad_unique")
+  @@index([companyId, nombre])
+  @@map("columnas_kanban")
+}
+
 model Poliza {
   id               String       @id @default(uuid())
   companyId        String
   aseguradoraId    String
   ramoId           String
   clienteUserId    String
+  kanbanId         String?
   numeroPoliza     String
   fechaInicio      DateTime
   fechaVencimiento DateTime
@@ -222,13 +242,15 @@ model Poliza {
   createdAt DateTime       @default(now())
   updatedAt DateTime       @updatedAt
 
-  company     Company     @relation(fields: [companyId], references: [id])
-  aseguradora Aseguradora @relation(fields: [aseguradoraId], references: [id])
-  ramo        Ramo        @relation(fields: [ramoId], references: [id])
-  cliente     User        @relation("PolizaCliente", fields: [clienteUserId], references: [id])
+  company     Company        @relation(fields: [companyId], references: [id])
+  aseguradora Aseguradora    @relation(fields: [aseguradoraId], references: [id])
+  ramo        Ramo           @relation(fields: [ramoId], references: [id])
+  cliente     User           @relation("PolizaCliente", fields: [clienteUserId], references: [id])
+  kanban      ColumnaKanban? @relation(fields: [kanbanId], references: [id], onDelete: SetNull)
 
   @@unique([companyId, numeroPoliza], name: "poliza_company_numero_unique")
   @@index([companyId, clienteUserId])
+  @@index([companyId, kanbanId])
   @@map("polizas")
 }
 
