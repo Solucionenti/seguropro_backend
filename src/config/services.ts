@@ -17,7 +17,6 @@ import { PrismaPlanRepository } from '@/modules/plan/infrastructure/prisma-repo'
 import { PolizaService } from '@/modules/poliza/application/service'
 import { PrismaAseguradoraProvider } from '@/modules/poliza/infrastructure/prisma-aseguradora-provider'
 import { PrismaClienteUserProvider } from '@/modules/poliza/infrastructure/prisma-cliente-user-provider'
-import { PrismaKanbanProvider } from '@/modules/poliza/infrastructure/prisma-kanban-provider'
 import { PrismaRamoProvider } from '@/modules/poliza/infrastructure/prisma-ramo-provider'
 import { PrismaPolizaRepository } from '@/modules/poliza/infrastructure/prisma-repo'
 import { RamoService } from '@/modules/ramo/application/service'
@@ -26,6 +25,10 @@ import { SuscripcionService } from '@/modules/suscripcion/application/service'
 import { PrismaCompanyProvider } from '@/modules/suscripcion/infrastructure/prisma-company-provider'
 import { PrismaPlanProvider } from '@/modules/suscripcion/infrastructure/prisma-plan-provider'
 import { PrismaSuscripcionRepository } from '@/modules/suscripcion/infrastructure/prisma-repo'
+import { TareaKanbanService } from '@/modules/tarea-kanban/application/service'
+import { PrismaTareaKanbanColumnaProvider } from '@/modules/tarea-kanban/infrastructure/prisma-columna-kanban-provider'
+import { PrismaTareaKanbanPolizaProvider } from '@/modules/tarea-kanban/infrastructure/prisma-poliza-provider'
+import { PrismaTareaKanbanRepository } from '@/modules/tarea-kanban/infrastructure/prisma-repo'
 import { CompanyUserService } from '@/modules/user/application/company-user-service'
 import { UserService } from '@/modules/user/application/service'
 import { PrismaUserRepository } from '@/modules/user/infrastructure/prisma-repo'
@@ -38,6 +41,7 @@ import { ResendEmailSender } from '@/shared/infrastructure/resend-email-sender'
 
 const aseguradoraRepo = new PrismaAseguradoraRepository(prisma)
 const columnaKanbanRepo = new PrismaColumnaKanbanRepository(prisma)
+const tareaKanbanRepo = new PrismaTareaKanbanRepository(prisma)
 const authUserProvider = new PrismaAuthUserProvider(prisma)
 const userRepo = new PrismaUserRepository(prisma)
 const healthRepo = new PrismaHealthRepository(prisma)
@@ -52,7 +56,8 @@ const polizaRepo = new PrismaPolizaRepository(prisma)
 const polizaAseguradoraProvider = new PrismaAseguradoraProvider(prisma)
 const polizaRamoProvider = new PrismaRamoProvider(prisma)
 const polizaClienteProvider = new PrismaClienteUserProvider(prisma)
-const polizaKanbanProvider = new PrismaKanbanProvider(prisma)
+const tareaKanbanColumnaProvider = new PrismaTareaKanbanColumnaProvider(prisma)
+const tareaKanbanPolizaProvider = new PrismaTareaKanbanPolizaProvider(prisma)
 const passwordHasher = new BunPasswordHasher()
 const jwtService = new JoseJwtService({
   secret: envConfig.JWT_SECRET,
@@ -67,6 +72,11 @@ const emailSender = new ResendEmailSender({
 const suscripcionPlanProvider = new PrismaSuscripcionPlanProvider(prisma)
 const aseguradoraService = new AseguradoraService(aseguradoraRepo)
 const columnaKanbanService = new ColumnaKanbanService(columnaKanbanRepo)
+const tareaKanbanService = new TareaKanbanService(
+  tareaKanbanRepo,
+  tareaKanbanColumnaProvider,
+  tareaKanbanPolizaProvider,
+)
 const userService = new UserService(userRepo, passwordHasher)
 const companyUserService = new CompanyUserService(userRepo, passwordHasher, suscripcionPlanProvider)
 const healthService = new HealthService(healthRepo)
@@ -83,7 +93,6 @@ const polizaService = new PolizaService(
   polizaAseguradoraProvider,
   polizaRamoProvider,
   polizaClienteProvider,
-  polizaKanbanProvider,
 )
 
 // --- Per-module Elysia service plugins ---
@@ -132,6 +141,10 @@ export const aseguradoraServicePlugin = new Elysia({ name: '@app/services/asegur
 export const columnaKanbanServicePlugin = new Elysia({
   name: '@app/services/columna-kanban',
 }).decorate('columnaKanbanService', columnaKanbanService)
+
+export const tareaKanbanServicePlugin = new Elysia({
+  name: '@app/services/tarea-kanban',
+}).decorate('tareaKanbanService', tareaKanbanService)
 
 export const ramoServicePlugin = new Elysia({ name: '@app/services/ramo' }).decorate(
   'ramoService',

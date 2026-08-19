@@ -113,7 +113,7 @@ export const columnaKanbanController = new Elysia({
         tags: ['Columnas Kanban'],
         summary: 'Delete Kanban column permanently',
         description:
-          'Permanently deletes a Kanban column. Policies assigned to it are unassigned automatically.',
+          'Permanently deletes a Kanban column. Tasks assigned to it lose the optional column association automatically.',
       },
     },
   )

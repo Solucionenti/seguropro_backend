@@ -74,6 +74,7 @@ model Company {
   aseguradoras   Aseguradora[]
   ramos          Ramo[]
   columnasKanban ColumnaKanban[]
+  tareasKanban   TareaKanban[]
   polizas        Poliza[]
 
   @@map("companies")
@@ -215,8 +216,8 @@ model ColumnaKanban {
   createdAt DateTime       @default(now())
   updatedAt DateTime       @updatedAt
 
-  company Company  @relation(fields: [companyId], references: [id])
-  polizas Poliza[]
+  company Company       @relation(fields: [companyId], references: [id])
+  tareas  TareaKanban[]
 
   @@unique([companyId, prioridad], name: "columna_kanban_company_prioridad_unique")
   @@index([companyId, nombre])
@@ -229,7 +230,6 @@ model Poliza {
   aseguradoraId    String
   ramoId           String
   clienteUserId    String
-  kanbanId         String?
   numeroPoliza     String
   fechaInicio      DateTime
   fechaVencimiento DateTime
@@ -242,16 +242,36 @@ model Poliza {
   createdAt DateTime       @default(now())
   updatedAt DateTime       @updatedAt
 
-  company     Company        @relation(fields: [companyId], references: [id])
-  aseguradora Aseguradora    @relation(fields: [aseguradoraId], references: [id])
-  ramo        Ramo           @relation(fields: [ramoId], references: [id])
-  cliente     User           @relation("PolizaCliente", fields: [clienteUserId], references: [id])
-  kanban      ColumnaKanban? @relation(fields: [kanbanId], references: [id], onDelete: SetNull)
+  company      Company       @relation(fields: [companyId], references: [id])
+  aseguradora  Aseguradora   @relation(fields: [aseguradoraId], references: [id])
+  ramo         Ramo          @relation(fields: [ramoId], references: [id])
+  cliente      User          @relation("PolizaCliente", fields: [clienteUserId], references: [id])
+  tareasKanban TareaKanban[]
 
   @@unique([companyId, numeroPoliza], name: "poliza_company_numero_unique")
   @@index([companyId, clienteUserId])
-  @@index([companyId, kanbanId])
   @@map("polizas")
+}
+
+model TareaKanban {
+  id              String  @id @default(uuid())
+  companyId       String
+  columnaKanbanId String?
+  polizaId        String?
+  titulo          String
+  descripcion     String?
+
+  status    ResourceStatus @default(ACTIVE)
+  createdAt DateTime       @default(now())
+  updatedAt DateTime       @updatedAt
+
+  company       Company        @relation(fields: [companyId], references: [id])
+  columnaKanban ColumnaKanban? @relation(fields: [columnaKanbanId], references: [id], onDelete: SetNull)
+  poliza        Poliza?        @relation(fields: [polizaId], references: [id], onDelete: SetNull)
+
+  @@index([companyId, columnaKanbanId])
+  @@index([companyId, polizaId])
+  @@map("tareas_kanban")
 }
 
 model DetalleCliente {

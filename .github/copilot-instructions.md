@@ -115,7 +115,7 @@
 - ALL read queries MUST filter by `status: 'ACTIVE'` by default. Use `findFirst` with `status: 'ACTIVE'` instead of `findUnique` where applicable.
 - `ResourceStatus` enum values: `ACTIVE` (normal), `INACTIVE` (disabled but preserved), `DELETED` (soft-deleted).
 - If a hard delete is truly needed (e.g. GDPR), it must be a separate, explicitly named method and requires explicit approval.
-- Explicit feature exception: `ColumnaKanban` uses `hardDelete` and a physical DELETE endpoint; its foreign key sets related `Poliza.kanbanId` to `NULL` with `ON DELETE SET NULL`.
+- Explicit feature exception: `ColumnaKanban` and `TareaKanban` use `hardDelete` and physical DELETE endpoints. Their optional foreign keys use `ON DELETE SET NULL` so deleting a column or policy preserves task records.
 
 ### Auth
 - **JWT**: `jose` library via `JwtService` interface (`src/shared/domain/jwt-service.ts`) + `JoseJwtService` class (`src/shared/infrastructure/jose-jwt-service.ts`). Access + refresh token pair. JWT payload includes `sub`, `role`, and `companyId` for tenant isolation.
