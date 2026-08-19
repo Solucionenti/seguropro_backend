@@ -14,3 +14,16 @@ export interface Company
       | 'pais'
       | 'estado'
     > {}
+
+// full replacement: the optional fields are nulled when omitted
+export type UpdateCompanyInput = Pick<
+  CompanyModel,
+  | 'emailContacto'
+  | 'telefonoContacto'
+  | 'razonSocial'
+  | 'nombreComercial'
+  | 'rfc'
+  | 'tipoPersona'
+  | 'pais'
+  | 'estado'
+>

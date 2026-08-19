@@ -144,6 +144,11 @@
 - Access is scoped through the poliza and a foreign poliza yields `NotFoundError` (never `ForbiddenError`), so it is indistinguishable from a missing one.
 - Nested routes are `/polizas/:id/archivos/:archivoId`. Keep the poliza segment named `:id` — Elysia's router demands the same parameter name at the same position and `polizaController` already uses `/polizas/:id`.
 
+### Mi Empresa (RF-OWNER-09 / RF-OWNER-10)
+- `GET/PUT /companies/mi-empresa` take the company from the JWT `companyId`, never from the URL or body — an OWNER structurally cannot reach another tenant. Never add an id param to these routes.
+- `PUT` is a full replacement: `emailContacto` and `telefonoContacto` required, every other editable field nulled when omitted. Need a partial update? Add a separate `PATCH`, do not soften the `PUT`.
+- `id`, `status` and the subscription are not editable here. An INACTIVE company is unreadable and therefore uneditable (`NotFoundError`).
+
 ### Multi-Tenant Model
 - Each **Company (Empresa)** is an isolated tenant. All data queries must be scoped by `companyId`.
 - Users are unique per company: `@@unique([companyId, email])`. The same email can exist in multiple companies.

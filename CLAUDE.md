@@ -67,6 +67,7 @@ prisma/schema.prisma                 # Single source of truth for models and enu
 | | `GET /api/v1/users/mis-usuarios/agentes`, `GET /api/v1/users/mis-usuarios/clientes` | `OWNER` |
 | | `POST /api/v1/users/mis-usuarios/agentes` | `OWNER` |
 | `company` | `GET /api/v1/companies`, `GET /api/v1/companies/:id` | `MASTER_ADMIN` |
+| | `GET /api/v1/companies/mi-empresa`, `PUT /api/v1/companies/mi-empresa` | `OWNER` |
 | `plan` | `GET/POST /api/v1/plans`, `GET/PATCH /api/v1/plans/:id`, `DELETE /api/v1/plans/deactivate/:id` | `MASTER_ADMIN` |
 | `suscripcion` | `GET/POST /api/v1/suscripciones`, `GET/PATCH/DELETE /api/v1/suscripciones/:id` | `MASTER_ADMIN` |
 | | `GET/POST/DELETE /api/v1/suscripciones/mi-suscripcion`, `POST /api/v1/suscripciones/mi-suscripcion-con-orden` | `OWNER` |
@@ -278,6 +279,12 @@ NEVER hand-compute `skip`/`take` or hardcode `orderBy: { createdAt: 'desc' }` �
 - The allowed `mimeType` list lives in `ArchivoPolizaService` (application layer), NOT in the Zod schema, so the rule has a single owner.
 - Every operation is scoped through the poliza: `assertPolizaAccessible` resolves the poliza by `companyId` (and by `clienteUserId` when the caller is a CLIENT) and throws `NotFoundError` — never `ForbiddenError` — so a foreign poliza is indistinguishable from a missing one.
 - Routes are nested as `/polizas/:id/archivos/:archivoId`. The poliza segment MUST stay named `:id`: Elysia's router requires the same parameter name at the same position, and `polizaController` already registers `/polizas/:id`.
+
+### Mi Empresa (RF-OWNER-09 / RF-OWNER-10)
+- `GET/PUT /companies/mi-empresa` resolve the target company from the JWT `companyId`. The id is NEVER read from the URL or the body, so an OWNER structurally cannot reach another tenant. Do not add an id parameter to these routes.
+- `PUT` is a full replacement: `emailContacto` and `telefonoContacto` are required (they are the non-nullable columns) and every other editable field is set to `NULL` when omitted. If a partial update is ever needed, add a separate `PATCH` — do not soften the `PUT`.
+- `id`, `status` and the subscription are NOT editable from this flow.
+- An INACTIVE company is unreadable, therefore uneditable: the repository filters `status: ACTIVE`, so it surfaces as `NotFoundError`.
 
 ### Multi-Tenant Model
 - All data queries in tenant-scoped modules MUST be filtered by `companyId`.

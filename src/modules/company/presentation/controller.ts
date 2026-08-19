@@ -3,7 +3,7 @@ import { Elysia } from 'elysia'
 import { companyServicePlugin } from '@/config/services'
 import { authRouter } from '@/shared/routers/auth-router'
 import { idParams } from '@/shared/utils/pagination'
-import { companyListQuery } from './schemas'
+import { companyListQuery, updateMyCompanySchema } from './schemas'
 
 const COMPANY_SORT_FIELDS = [
   'createdAt',
@@ -39,6 +39,44 @@ export const companyController = new Elysia({
         summary: 'List companies',
         description:
           'Returns a paginated list of companies (tenants). Supports filtering by nombre (matches nombreComercial or razonSocial), rfc and tipoPersona.',
+      },
+    },
+  )
+
+  // registered before /:id so the static route wins
+  .get(
+    '/mi-empresa',
+    async ({ companyId, companyService, jsonOk }) => {
+      const company = await companyService.getMyCompany(companyId)
+      return jsonOk(company)
+    },
+    {
+      requireCompany: true,
+      withRole: UserRole.OWNER,
+      detail: {
+        tags: ['Companies'],
+        summary: 'Get my company (OWNER)',
+        description:
+          'Returns the company of the authenticated OWNER. The company is resolved from the JWT companyId, so an OWNER can never read another company.',
+      },
+    },
+  )
+
+  .put(
+    '/mi-empresa',
+    async ({ body, companyId, companyService, jsonOk }) => {
+      const company = await companyService.updateMyCompany(companyId, body)
+      return jsonOk(company, 'Company updated successfully')
+    },
+    {
+      body: updateMyCompanySchema,
+      requireCompany: true,
+      withRole: UserRole.OWNER,
+      detail: {
+        tags: ['Companies'],
+        summary: 'Update my company (OWNER)',
+        description:
+          'Replaces the editable data of the authenticated OWNER company. The target is resolved from the JWT companyId, never from the request, so an OWNER can only edit their own company. PUT semantics: emailContacto and telefonoContacto are required and every other field is set to null when omitted. id, status and the subscription cannot be changed here.',
       },
     },
   )

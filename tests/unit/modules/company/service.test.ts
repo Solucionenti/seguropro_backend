@@ -31,8 +31,14 @@ function createMocks() {
   const repo: Mocked<CompanyRepository> = {
     findAll: mock(() => Promise.resolve(Page.empty<Company>(defaultPageable))),
     findById: mock(() => Promise.resolve(null)),
+    update: mock(() => Promise.resolve(createMockCompany())),
   }
   return { repo }
+}
+
+const baseUpdateInput = {
+  emailContacto: 'nuevo@segur.mx',
+  telefonoContacto: '5544332211',
 }
 
 describe('CompanyService', () => {
@@ -65,6 +71,69 @@ describe('CompanyService', () => {
       const company = await service.getById('company-1')
 
       expect(company.nombreComercial).toBe('Segur')
+    })
+  })
+
+  describe('getMyCompany', () => {
+    it('should resolve the company from the given companyId only', async () => {
+      mocks.repo.findById.mockResolvedValue(createMockCompany())
+
+      await service.getMyCompany('company-1')
+
+      expect(mocks.repo.findById).toHaveBeenCalledWith('company-1')
+    })
+
+    it('should throw NotFoundError when the company is not active', async () => {
+      await expect(service.getMyCompany('company-1')).rejects.toThrow(NotFoundError)
+    })
+  })
+
+  describe('updateMyCompany', () => {
+    it('should update the company taken from companyId, not from the input', async () => {
+      mocks.repo.findById.mockResolvedValue(createMockCompany())
+
+      await service.updateMyCompany('company-1', baseUpdateInput)
+
+      expect(mocks.repo.update.mock.calls[0]?.[0]).toBe('company-1')
+    })
+
+    it('should null the omitted optional fields (PUT replacement)', async () => {
+      mocks.repo.findById.mockResolvedValue(createMockCompany())
+
+      await service.updateMyCompany('company-1', baseUpdateInput)
+
+      expect(mocks.repo.update.mock.calls[0]?.[1]).toEqual({
+        emailContacto: 'nuevo@segur.mx',
+        telefonoContacto: '5544332211',
+        razonSocial: null,
+        nombreComercial: null,
+        rfc: null,
+        tipoPersona: null,
+        pais: null,
+        estado: null,
+      })
+    })
+
+    it('should keep the provided optional fields', async () => {
+      mocks.repo.findById.mockResolvedValue(createMockCompany())
+
+      await service.updateMyCompany('company-1', {
+        ...baseUpdateInput,
+        razonSocial: 'Segur SA de CV',
+        tipoPersona: TipoPersona.MORAL,
+      })
+
+      expect(mocks.repo.update.mock.calls[0]?.[1]).toMatchObject({
+        razonSocial: 'Segur SA de CV',
+        tipoPersona: TipoPersona.MORAL,
+      })
+    })
+
+    it('should not update an inactive company', async () => {
+      await expect(service.updateMyCompany('company-1', baseUpdateInput)).rejects.toThrow(
+        NotFoundError,
+      )
+      expect(mocks.repo.update).not.toHaveBeenCalled()
     })
   })
 })

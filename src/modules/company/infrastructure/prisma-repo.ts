@@ -2,7 +2,7 @@ import type { Prisma } from '@gen/client'
 import { ResourceStatus } from '@gen/enums'
 import type { AppPrismaClient } from '@/config/database'
 import { Page, type Pageable } from '@/shared/domain/pagination'
-import type { Company } from '../domain/entities'
+import type { Company, UpdateCompanyInput } from '../domain/entities'
 import type { CompanyFilters, CompanyRepository } from '../domain/repository'
 
 export class PrismaCompanyRepository implements CompanyRepository {
@@ -37,6 +37,13 @@ export class PrismaCompanyRepository implements CompanyRepository {
   async findById(id: string): Promise<Company | null> {
     return this.prisma.company.findFirst({
       where: { id, status: ResourceStatus.ACTIVE },
+    })
+  }
+
+  async update(id: string, input: UpdateCompanyInput): Promise<Company> {
+    return this.prisma.company.update({
+      where: { id },
+      data: input,
     })
   }
 }
