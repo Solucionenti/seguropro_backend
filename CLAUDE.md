@@ -75,7 +75,8 @@ prisma/schema.prisma                 # Single source of truth for models and enu
 | `aseguradora` | `GET/POST /api/v1/aseguradoras`, `GET/PATCH/DELETE /api/v1/aseguradoras/:id` | `OWNER`, `AGENT` |
 | `ramo` | `GET/POST /api/v1/ramos`, `GET/PATCH/DELETE /api/v1/ramos/:id` | `OWNER`, `AGENT` |
 | `poliza` | `GET /api/v1/polizas`, `GET /api/v1/polizas/:id` | `OWNER`, `AGENT`, `CLIENT` (own only) |
-| | `POST /api/v1/polizas`, `PATCH/DELETE /api/v1/polizas/:id` | `OWNER`, `AGENT` |
+| | `POST /api/v1/polizas`, `PATCH/DELETE /api/v1/polizas/:id`, `PATCH /api/v1/polizas/:id/kanban` | `OWNER`, `AGENT` |
+| `columna-kanban` | `GET/POST /api/v1/columnas-kanban`, `GET/PATCH/DELETE /api/v1/columnas-kanban/:id` | `OWNER`, `AGENT` |
 
 ## Current Prisma Models
 
@@ -90,8 +91,10 @@ Aseguradora  id, companyId, nombre, descripcion?, active, status, createdAt, upd
              @@unique([companyId, nombre])
 Ramo         id, companyId, nombre, descripcion?, active, status, createdAt, updatedAt
              @@unique([companyId, nombre])
+ColumnaKanban id, companyId, nombre, prioridad, status, createdAt, updatedAt
+             @@unique([companyId, prioridad]) · physical delete; related Poliza.kanbanId is set to NULL
 Poliza       id, companyId, aseguradoraId, ramoId, clienteUserId, numeroPoliza, fechaInicio, fechaVencimiento, primaNeta, primaTotal, polizaStatus, active, status, createdAt, updatedAt
-             @@unique([companyId, numeroPoliza]) · @@index([companyId, clienteUserId])
+             kanbanId? · @@unique([companyId, numeroPoliza]) · @@index([companyId, clienteUserId]) · @@index([companyId, kanbanId])
 ```
 
 Enums: `UserRole` (MASTER_ADMIN, OWNER, AGENT, CLIENT) · `ResourceStatus` (ACTIVE, INACTIVE, DELETED) · `TipoPersona` (FISICA, MORAL) · `Periodicidad` (MENSUAL, TRIMESTRAL, SEMESTRAL, ANUAL) · `SuscripcionStatus` (TRIAL, ACTIVA, CANCELADA, VENCIDA, SUSPENDIDA) · `OrdenStatus` (PENDIENTE, PAGADA, FALLIDA, CANCELADA) · `PolizaStatus` (VIGENTE, VENCIDA, CANCELADA, RENOVADA)
@@ -231,9 +234,10 @@ NEVER hand-compute `skip`/`take` or hardcode `orderBy: { createdAt: 'desc' }` �
 - The `User` domain entity does NOT include `passwordHash`.
 
 ### Soft Deletion
-- NEVER perform real DELETE. ALL deletions MUST set `status = 'DELETED'`.
+- By default, never perform real DELETE. ALL deletions MUST set `status = 'DELETED'`.
 - Repository delete methods MUST be named `softDelete`.
 - ALL read queries MUST filter by `status: ResourceStatus.ACTIVE` by default.
+- Explicit exception: `ColumnaKanban` uses a `hardDelete` repository/service method and physical DELETE endpoint as requested; its foreign key uses `ON DELETE SET NULL` so related policies remain intact.
 - Use `findFirst` with `status: 'ACTIVE'` instead of `findUnique` where applicable.
 
 ### Auth

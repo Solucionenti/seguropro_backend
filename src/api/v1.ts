@@ -1,6 +1,7 @@
 import { Elysia } from 'elysia'
 import { aseguradoraController } from '@/modules/aseguradora/presentation/controller'
 import { authController } from '@/modules/auth/presentation/controller'
+import { columnaKanbanController } from '@/modules/columna-kanban/presentation/controller'
 import { companyController } from '@/modules/company/presentation/controller'
 import { healthController } from '@/modules/health/presentation/controller'
 import { ordenController } from '@/modules/orden/presentation/controller'
@@ -22,6 +23,7 @@ export const v1 = new Elysia({ name: '@app/api/v1', prefix: '/api/v1' })
   .use(suscripcionController)
   .use(ordenController)
   .use(aseguradoraController)
+  .use(columnaKanbanController)
   .use(ramoController)
   .use(polizaController)
   .use(siniestroController)

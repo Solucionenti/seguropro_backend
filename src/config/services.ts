@@ -5,6 +5,8 @@ import { AseguradoraService } from '@/modules/aseguradora/application/service'
 import { PrismaAseguradoraRepository } from '@/modules/aseguradora/infrastructure/prisma-repo'
 import { AuthService } from '@/modules/auth/application/service'
 import { PrismaAuthUserProvider } from '@/modules/auth/infrastructure/prisma-auth-user-provider'
+import { ColumnaKanbanService } from '@/modules/columna-kanban/application/service'
+import { PrismaColumnaKanbanRepository } from '@/modules/columna-kanban/infrastructure/prisma-repo'
 import { CompanyService } from '@/modules/company/application/service'
 import { PrismaCompanyRepository } from '@/modules/company/infrastructure/prisma-repo'
 import { HealthService } from '@/modules/health/application/service'
@@ -17,6 +19,7 @@ import { PrismaPlanRepository } from '@/modules/plan/infrastructure/prisma-repo'
 import { PolizaService } from '@/modules/poliza/application/service'
 import { PrismaAseguradoraProvider } from '@/modules/poliza/infrastructure/prisma-aseguradora-provider'
 import { PrismaClienteUserProvider } from '@/modules/poliza/infrastructure/prisma-cliente-user-provider'
+import { PrismaKanbanProvider } from '@/modules/poliza/infrastructure/prisma-kanban-provider'
 import { PrismaRamoProvider } from '@/modules/poliza/infrastructure/prisma-ramo-provider'
 import { PrismaPolizaRepository } from '@/modules/poliza/infrastructure/prisma-repo'
 import { RamoService } from '@/modules/ramo/application/service'
@@ -39,6 +42,7 @@ import { ResendEmailSender } from '@/shared/infrastructure/resend-email-sender'
 // --- Instantiation (wiring) ---
 
 const aseguradoraRepo = new PrismaAseguradoraRepository(prisma)
+const columnaKanbanRepo = new PrismaColumnaKanbanRepository(prisma)
 const authUserProvider = new PrismaAuthUserProvider(prisma)
 const userRepo = new PrismaUserRepository(prisma)
 const healthRepo = new PrismaHealthRepository(prisma)
@@ -53,6 +57,7 @@ const polizaRepo = new PrismaPolizaRepository(prisma)
 const polizaAseguradoraProvider = new PrismaAseguradoraProvider(prisma)
 const polizaRamoProvider = new PrismaRamoProvider(prisma)
 const polizaClienteProvider = new PrismaClienteUserProvider(prisma)
+const polizaKanbanProvider = new PrismaKanbanProvider(prisma)
 const companyRepo = new PrismaCompanyRepository(prisma)
 const siniestroRepo = new PrismaSiniestroRepository(prisma)
 const siniestroPolizaProvider = new PrismaPolizaProvider(prisma)
@@ -69,6 +74,7 @@ const emailSender = new ResendEmailSender({
 })
 const suscripcionPlanProvider = new PrismaSuscripcionPlanProvider(prisma)
 const aseguradoraService = new AseguradoraService(aseguradoraRepo)
+const columnaKanbanService = new ColumnaKanbanService(columnaKanbanRepo)
 const userService = new UserService(userRepo, passwordHasher)
 const companyUserService = new CompanyUserService(userRepo, passwordHasher, suscripcionPlanProvider)
 const healthService = new HealthService(healthRepo)
@@ -85,6 +91,7 @@ const polizaService = new PolizaService(
   polizaAseguradoraProvider,
   polizaRamoProvider,
   polizaClienteProvider,
+  polizaKanbanProvider,
 )
 const companyService = new CompanyService(companyRepo)
 const siniestroService = new SiniestroService(siniestroRepo, siniestroPolizaProvider)
@@ -131,6 +138,10 @@ export const aseguradoraServicePlugin = new Elysia({ name: '@app/services/asegur
   'aseguradoraService',
   aseguradoraService,
 )
+
+export const columnaKanbanServicePlugin = new Elysia({
+  name: '@app/services/columna-kanban',
+}).decorate('columnaKanbanService', columnaKanbanService)
 
 export const ramoServicePlugin = new Elysia({ name: '@app/services/ramo' }).decorate(
   'ramoService',
