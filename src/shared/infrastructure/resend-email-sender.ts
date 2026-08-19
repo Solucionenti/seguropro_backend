@@ -16,8 +16,7 @@ export class ResendEmailSender implements EmailSender {
     await this.send(to, 'Restablece tu contraseña', html)
   }
 
-  // fetch directo: el SDK `resend` es un wrapper de este mismo endpoint.
-  // Envío síncrono dentro del request: mover a cola si el latency del request importa.
+  // sent synchronously inside the request, move to a queue if latency becomes a problem
   private async send(to: string, subject: string, html: string): Promise<void> {
     const response = await fetch('https://api.resend.com/emails', {
       method: 'POST',

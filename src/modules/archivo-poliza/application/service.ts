@@ -11,8 +11,7 @@ import type {
   UpdateArchivoPolizaServiceInput,
 } from '../domain/service'
 
-// Política de negocio: solo documentos e imágenes. Vive aquí, no en el schema Zod,
-// para que la regla tenga un único dueño.
+// business rule, kept out of the zod schema so it has a single owner
 const ALLOWED_MIME_TYPES = new Set([
   'application/pdf',
   'image/jpeg',
@@ -41,7 +40,7 @@ export class ArchivoPolizaService implements IArchivoPolizaService {
   ): Promise<ArchivoPoliza> {
     await this.assertPolizaAccessible(scope)
     this.assertMimeType(input.mimeType)
-    this.assertTamano(input.tamanoBytes)
+    this.assertNonNegative(input.tamanoBytes, 'tamanoBytes')
 
     return this.repo.create({
       polizaId: scope.polizaId,
@@ -72,7 +71,7 @@ export class ArchivoPolizaService implements IArchivoPolizaService {
     if (input.mimeType !== undefined) {
       this.assertMimeType(input.mimeType)
     }
-    this.assertTamano(input.tamanoBytes)
+    this.assertNonNegative(input.tamanoBytes, 'tamanoBytes')
 
     return this.repo.update(id, input)
   }
@@ -82,8 +81,7 @@ export class ArchivoPolizaService implements IArchivoPolizaService {
     return this.repo.softDelete(id)
   }
 
-  // La póliza acota el archivo: si no pertenece a la company (o al cliente, cuando
-  // quien pregunta es CLIENT) el archivo no existe para quien pregunta.
+  // notFound instead of forbidden so a foreign poliza looks the same as a missing one
   private async assertPolizaAccessible(scope: ArchivoPolizaScope): Promise<void> {
     const poliza = await this.polizaProvider.findActiveByIdForCompany(
       scope.polizaId,
@@ -106,9 +104,9 @@ export class ArchivoPolizaService implements IArchivoPolizaService {
     }
   }
 
-  private assertTamano(tamanoBytes: number | undefined): void {
-    if (tamanoBytes !== undefined && tamanoBytes < 0) {
-      throw new ValidationError('tamanoBytes must be non-negative')
+  private assertNonNegative(value: number | undefined, field: string): void {
+    if (value !== undefined && value < 0) {
+      throw new ValidationError(`${field} must be non-negative`)
     }
   }
 }

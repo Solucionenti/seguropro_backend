@@ -58,7 +58,7 @@ export const suscripcionController = new Elysia({
   )
 
   // ── OWNER self-service routes ─────────────────────────
-  // Must be defined before /:id to avoid param shadowing
+  // registered before /:id so the static route wins
 
   .get(
     '/mi-suscripcion',

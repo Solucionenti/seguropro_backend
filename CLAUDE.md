@@ -329,4 +329,12 @@ Test full request cycle via `app.handle(new Request(...))`. Keep to critical smo
 - Kebab-case filenames (`app-error.ts`, `prisma-repo.ts`, `public-router.ts`).
 - Zod schemas in `presentation/schemas.ts` of each module.
 - Use `type` keyword for type-only imports (`import type { ... }`).
-- Default to writing NO comments unless the WHY is non-obvious.
+- Default to writing NO comments unless the WHY is non-obvious. Never restate what the code already says.
+- Comments MUST be in English, all lowercase, with no trailing period. Short note, not prose:
+  - Good: `// clienteUserId comes from the poliza, never from the request`
+  - Bad: `// El clienteUserId se deriva de la póliza: nunca se recibe del cliente HTTP.`
+- Identifiers, types and helpers MUST be in English. The ONLY exception is the insurance
+  domain vocabulary already fixed in `prisma/schema.prisma` and the requirements
+  (`Poliza`, `Siniestro`, `Aseguradora`, `Ramo`, `Suscripcion`, `Orden`, `montoEstimado`,
+  `fechaVencimiento`, …), which stays in Spanish. Do NOT mix a Spanish verb into a helper
+  name: prefer `assertNonNegative(value, 'montoEstimado')` over `assertMonto(...)`.

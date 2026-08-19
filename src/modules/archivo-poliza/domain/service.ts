@@ -1,9 +1,7 @@
 import type { Page, Pageable } from '@/shared/domain/pagination'
 import type { ArchivoPoliza } from './entities'
 
-/**
- * `clienteUserId` presente = la petición viene de un CLIENT y la póliza debe ser suya.
- */
+// clienteUserId set means the caller is a CLIENT and the poliza must be theirs
 export interface ArchivoPolizaScope {
   polizaId: string
   companyId: string

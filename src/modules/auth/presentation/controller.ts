@@ -68,7 +68,7 @@ export const authController = new Elysia({
     '/forgot-password',
     async ({ body, authService, jsonOkNoData }) => {
       await authService.forgotPassword(body.email)
-      // Respuesta idéntica exista o no la cuenta: evita enumeración de usuarios.
+      // same response whether or not the account exists, avoids user enumeration
       return jsonOkNoData('If the email exists, a reset link has been sent')
     },
     {

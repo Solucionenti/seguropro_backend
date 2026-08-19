@@ -84,7 +84,7 @@ export const polizaController = new Elysia({
     },
   )
 
-  // `/mis-polizas` se registra antes de `/:id` para que la ruta estática gane.
+  // registered before /:id so the static route wins
   .get(
     '/mis-polizas',
     async ({ query, pageable, companyId, userId, polizaService, jsonOk }) => {

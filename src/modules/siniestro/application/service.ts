@@ -34,19 +34,18 @@ export class SiniestroService implements ISiniestroService {
       throw new ValidationError('Poliza not found for this company')
     }
 
-    this.assertMonto(input.montoEstimado, 'montoEstimado')
+    this.assertNonNegative(input.montoEstimado, 'montoEstimado')
 
     if (input.fechaEvento > new Date()) {
       throw new ValidationError('fechaEvento cannot be in the future')
     }
-    // El evento debe haber ocurrido dentro de la vigencia de la póliza.
     if (input.fechaEvento < poliza.fechaInicio || input.fechaEvento > poliza.fechaVencimiento) {
       throw new ValidationError(
         'fechaEvento must fall within the poliza coverage period (fechaInicio..fechaVencimiento)',
       )
     }
 
-    // clienteUserId se deriva de la póliza: nunca se recibe del cliente HTTP.
+    // clienteUserId comes from the poliza, never from the request
     return this.repo.create({
       companyId: input.companyId,
       polizaId: input.polizaId,
@@ -80,8 +79,8 @@ export class SiniestroService implements ISiniestroService {
   ): Promise<SiniestroWithDetails> {
     await this.getById(id, companyId)
 
-    this.assertMonto(input.montoEstimado, 'montoEstimado')
-    this.assertMonto(input.montoPagado, 'montoPagado')
+    this.assertNonNegative(input.montoEstimado, 'montoEstimado')
+    this.assertNonNegative(input.montoPagado, 'montoPagado')
 
     return this.repo.update(id, input)
   }
@@ -91,7 +90,7 @@ export class SiniestroService implements ISiniestroService {
     return this.repo.softDelete(id)
   }
 
-  private assertMonto(value: number | undefined, field: string): void {
+  private assertNonNegative(value: number | undefined, field: string): void {
     if (value !== undefined && value < 0) {
       throw new ValidationError(`${field} must be non-negative`)
     }

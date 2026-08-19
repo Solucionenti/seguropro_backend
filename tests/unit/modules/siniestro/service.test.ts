@@ -11,7 +11,6 @@ import type { Mocked } from '../../../utils/mocked'
 
 const defaultPageable = new Pageable(1, 20)
 
-// La poliza cubre todo 2026, asi que un evento a mitad de ano es valido.
 const polizaStub: PolizaBasicInfo = {
   id: 'poliza-1',
   companyId: 'company-1',

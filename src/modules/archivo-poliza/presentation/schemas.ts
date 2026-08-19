@@ -1,8 +1,7 @@
 import { z } from 'zod'
 
-// El segmento de la póliza se llama `:id` porque el router de Elysia exige el mismo
-// nombre de parámetro en la misma posición, y `polizaController` ya registra
-// `/polizas/:id`. El id del archivo va como `:archivoId`.
+// the poliza segment must stay `:id`: elysia requires the same param name at the
+// same position and polizaController already registers /polizas/:id
 export const polizaScopeParams = z.object({
   id: z.string().uuid('Invalid poliza ID format'),
 })

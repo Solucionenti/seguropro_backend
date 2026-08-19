@@ -191,6 +191,11 @@ Each feature module lives in `src/modules/[feature]/` with 4 layers:
 - Kebab-case filenames (e.g. `app-error.ts`, `prisma-repo.ts`, `public-router.ts`)
 - Zod schemas live in `presentation/schemas.ts` of each module
 - Use `type` keyword for type-only imports (`import type { ... }`)
+- Write as few comments as possible: only when the WHY is non-obvious, never restating the code
+- Comments MUST be English, all lowercase, no trailing period — a short note, not prose
+- Identifiers, types and helpers MUST be English. Only the insurance domain vocabulary already
+  fixed in `prisma/schema.prisma` (`Poliza`, `Siniestro`, `Aseguradora`, `Ramo`, `montoEstimado`, …)
+  stays in Spanish. Never mix a Spanish verb into a helper name
 
 ## Testing
 

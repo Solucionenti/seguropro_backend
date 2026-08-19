@@ -42,7 +42,7 @@ import { BunPasswordHasher } from '@/shared/infrastructure/bun-password-hasher'
 import { JoseJwtService } from '@/shared/infrastructure/jose-jwt-service'
 import { ResendEmailSender } from '@/shared/infrastructure/resend-email-sender'
 
-// --- Instantiation (wiring) ---
+// --- instantiation (wiring) ---
 
 const aseguradoraRepo = new PrismaAseguradoraRepository(prisma)
 const columnaKanbanRepo = new PrismaColumnaKanbanRepository(prisma)
@@ -102,8 +102,8 @@ const companyService = new CompanyService(companyRepo)
 const siniestroService = new SiniestroService(siniestroRepo, siniestroPolizaProvider)
 const archivoPolizaService = new ArchivoPolizaService(archivoPolizaRepo, archivoPolizaProvider)
 
-// --- Per-module Elysia service plugins ---
-// Controllers `.use()` only the plugins they need.
+// --- per-module elysia service plugins ---
+// controllers use only the plugins they need
 
 export const jwtServicePlugin = new Elysia({ name: '@app/services/jwt' }).decorate(
   'jwtService',

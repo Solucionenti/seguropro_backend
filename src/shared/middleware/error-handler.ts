@@ -2,9 +2,8 @@ import { Elysia } from 'elysia'
 import { AppError } from '@/shared/domain/app-error'
 import type { ApiResponse } from '@/shared/utils/response-types'
 
-// `as: 'global'` es obligatorio: los hooks de un plugin son locales por defecto,
-// así que sin esto el handler no corre y Elysia responde el error crudo en texto
-// plano con status 500.
+// as: 'global' is required, plugin hooks are local by default and without it every
+// AppError leaks as plain text with status 500
 export const errorHandler = new Elysia({ name: '@app/shared/error-handler' }).onError(
   { as: 'global' },
   ({ code, error, set }): ApiResponse<never> => {
@@ -16,8 +15,7 @@ export const errorHandler = new Elysia({ name: '@app/shared/error-handler' }).on
       }
     }
 
-    // Al ser global, este hook también recibe los errores propios de Elysia:
-    // hay que respetar su status en vez de convertirlos todos en 500.
+    // being global this also catches elysia's own errors, keep their status
     const builtIn: Partial<Record<typeof code, number>> = {
       NOT_FOUND: 404,
       VALIDATION: 422,
