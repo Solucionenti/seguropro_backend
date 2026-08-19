@@ -36,3 +36,5 @@ logs
 Thumbs.db
 .agents
 skills-lock.json
+
+.vscode/
