@@ -123,6 +123,11 @@ src/
 │       ├── application/             # CRUD service
 │       ├── infrastructure/          # Prisma adapter with physical delete
 │       └── presentation/            # /columnas-kanban CRUD routes and schemas
+│   └── tarea-kanban/
+│       ├── domain/                  # Task entity and cross-module ports
+│       ├── application/             # CRUD service and relation validation
+│       ├── infrastructure/          # Prisma repository and adapters
+│       └── presentation/            # /tareas-kanban CRUD routes and schemas
 ├── shared/
 │   ├── domain/
 │   │   ├── app-error.ts             # Base AppError class
@@ -148,7 +153,7 @@ src/
 ├── api/
 │   └── v1.ts                        # v1 router — mounts all module controllers
 prisma/
-├── schema.prisma                    # Database schema (including Poliza and ColumnaKanban)
+├── schema.prisma                    # Database schema (including Poliza, ColumnaKanban and TareaKanban)
 ├── seed.ts                          # Seed script — creates initial MASTER_ADMIN
 └── migrations/                      # Migration history
 ```
@@ -208,7 +213,7 @@ Routes are grouped by version: `/api/v1/...`. Each version is a separate Elysia 
 - `MASTER_ADMIN` users have `companyId = null` (platform level).
 - JWT tokens carry `companyId` for tenant isolation.
 - Login flow: `POST /auth/identify` (email → companies) → `POST /auth/login` (email + password + companyId → tokens).
-- Kanban columns are tenant-scoped through `companyId`; policies optionally reference them with `kanbanId`. Use `PATCH /api/v1/polizas/:id/kanban` to change only that relationship.
+- Kanban columns and tasks are tenant-scoped through `companyId`; tasks may optionally reference a column and a policy through `columnaKanbanId` and `polizaId`.
 
 ## Entity Conventions
 
@@ -216,7 +221,7 @@ Routes are grouped by version: `/api/v1/...`. Each version is a separate Elysia 
 - All Prisma models include `status ResourceStatus @default(ACTIVE)`, `createdAt`, `updatedAt`
 - Domain types derive from Prisma via `Pick<ModelType, ...>` — no field redeclaration
 - Prisma enums imported from `@gen/enums` — single source of truth
-- **Soft deletion by default** — set `status = 'DELETED'`. `ColumnaKanban` is the explicit physical-delete exception; deleting it clears related `Poliza.kanbanId` through `ON DELETE SET NULL`. All reads filter `status: 'ACTIVE'` by default
+- **Soft deletion by default** — set `status = 'DELETED'`. `ColumnaKanban` and `TareaKanban` are explicit physical-delete exceptions. Deleting a column clears the optional task relation; deleting a policy clears the optional task policy relation. All reads filter `status: 'ACTIVE'` by default
 - Prisma global `omit: { user: { passwordHash: true } }` — `passwordHash` excluded by default
 
 ## Dependency Injection
@@ -248,4 +253,4 @@ Routes are grouped by version: `/api/v1/...`. Each version is a separate Elysia 
 - **Elysia plugin naming**: `@app/[module]/[name]`
 - **Zod for all validation** — not Elysia.t / TypeBox.
 - **`type` keyword** for type-only imports.
-- **Soft deletion enforced by default** — never use real DELETE except the explicit `ColumnaKanban` physical-delete flow.
+- **Soft deletion enforced by default** — never use real DELETE except the explicit physical-delete flows for `ColumnaKanban` and `TareaKanban`.

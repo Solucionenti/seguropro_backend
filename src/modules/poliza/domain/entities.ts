@@ -1,5 +1,4 @@
 import type { AseguradoraModel } from '@gen/models/Aseguradora'
-import type { ColumnaKanbanModel } from '@gen/models/ColumnaKanban'
 import type { PolizaModel } from '@gen/models/Poliza'
 import type { RamoModel } from '@gen/models/Ramo'
 import type { UserModel } from '@gen/models/User'
@@ -23,10 +22,6 @@ export interface Poliza
     > {}
 
 export type AseguradoraBasicInfo = Pick<AseguradoraModel, 'id' | 'companyId' | 'nombre'>
-export type ColumnaKanbanBasicInfo = Pick<
-  ColumnaKanbanModel,
-  'id' | 'companyId' | 'nombre' | 'prioridad'
->
 export type RamoBasicInfo = Pick<RamoModel, 'id' | 'companyId' | 'nombre'>
 export type ClienteBasicInfo = Pick<
   UserModel,
@@ -35,7 +30,6 @@ export type ClienteBasicInfo = Pick<
 
 export interface PolizaWithDetails extends Poliza {
   aseguradora: AseguradoraBasicInfo
-  kanban: ColumnaKanbanBasicInfo | null
   ramo: RamoBasicInfo
   cliente: ClienteBasicInfo
 }
@@ -58,5 +52,3 @@ export type CreatePolizaInput = Pick<
 export type UpdatePolizaInput = Partial<
   Pick<PolizaModel, 'primaNeta' | 'primaTotal' | 'fechaVencimiento' | 'polizaStatus'>
 >
-
-export type UpdatePolizaKanbanInput = Pick<PolizaModel, 'kanbanId'>

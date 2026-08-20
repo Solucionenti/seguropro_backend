@@ -12,5 +12,13 @@ export interface ColumnaKanbanRepository {
   findByPrioridadAndCompany(prioridad: number, companyId: string): Promise<ColumnaKanban | null>
   create(input: CreateColumnaKanbanInput): Promise<ColumnaKanban>
   update(id: string, input: UpdateColumnaKanbanInput): Promise<ColumnaKanban>
+  updateWithPriorityReorder(
+    id: string,
+    companyId: string,
+    currentPriority: number,
+    newPriority: number,
+    input: UpdateColumnaKanbanInput,
+  ): Promise<ColumnaKanban>
   hardDelete(id: string): Promise<void>
+  hardDeleteWithPriorityReorder(id: string, companyId: string, priority: number): Promise<void>
 }

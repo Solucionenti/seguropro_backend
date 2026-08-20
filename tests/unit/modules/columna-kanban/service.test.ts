@@ -30,7 +30,9 @@ function createMocks() {
     findByPrioridadAndCompany: mock(() => Promise.resolve(null)),
     create: mock(() => Promise.resolve(createMockColumna())),
     update: mock(() => Promise.resolve(createMockColumna())),
+    updateWithPriorityReorder: mock(() => Promise.resolve(createMockColumna())),
     hardDelete: mock(() => Promise.resolve()),
+    hardDeleteWithPriorityReorder: mock(() => Promise.resolve()),
   }
   return { repo }
 }
@@ -119,14 +121,38 @@ describe('ColumnaKanbanService', () => {
       expect(mocks.repo.update).toHaveBeenCalledWith('kanban-1', { nombre: 'Renovación' })
     })
 
-    it('should reject a priority conflict with another column', async () => {
-      mocks.repo.findById.mockResolvedValue(createMockColumna())
-      mocks.repo.findByPrioridadAndCompany.mockResolvedValue(
-        createMockColumna({ id: 'kanban-2', prioridad: 2 }),
-      )
+    it('should move the other columns down when priority increases', async () => {
+      const existing = createMockColumna({ prioridad: 8 })
+      mocks.repo.findById.mockResolvedValue(existing)
+      mocks.repo.updateWithPriorityReorder.mockResolvedValue({ ...existing, prioridad: 10 })
 
-      expect(service.update('kanban-1', 'company-1', { prioridad: 2 })).rejects.toThrow(
-        ValidationError,
+      const result = await service.update('kanban-1', 'company-1', { prioridad: 10 })
+
+      expect(result.prioridad).toBe(10)
+      expect(mocks.repo.updateWithPriorityReorder).toHaveBeenCalledWith(
+        'kanban-1',
+        'company-1',
+        8,
+        10,
+        { prioridad: 10 },
+      )
+      expect(mocks.repo.update).not.toHaveBeenCalled()
+    })
+
+    it('should move the other columns up when priority decreases', async () => {
+      const existing = createMockColumna({ prioridad: 8 })
+      mocks.repo.findById.mockResolvedValue(existing)
+      mocks.repo.updateWithPriorityReorder.mockResolvedValue({ ...existing, prioridad: 5 })
+
+      const result = await service.update('kanban-1', 'company-1', { prioridad: 5 })
+
+      expect(result.prioridad).toBe(5)
+      expect(mocks.repo.updateWithPriorityReorder).toHaveBeenCalledWith(
+        'kanban-1',
+        'company-1',
+        8,
+        5,
+        { prioridad: 5 },
       )
       expect(mocks.repo.update).not.toHaveBeenCalled()
     })
@@ -138,12 +164,17 @@ describe('ColumnaKanbanService', () => {
 
       await service.hardDelete('kanban-1', 'company-1')
 
-      expect(mocks.repo.hardDelete).toHaveBeenCalledWith('kanban-1')
+      expect(mocks.repo.hardDeleteWithPriorityReorder).toHaveBeenCalledWith(
+        'kanban-1',
+        'company-1',
+        1,
+      )
     })
 
     it('should not delete a missing column', async () => {
       expect(service.hardDelete('missing', 'company-1')).rejects.toThrow(NotFoundError)
       expect(mocks.repo.hardDelete).not.toHaveBeenCalled()
+      expect(mocks.repo.hardDeleteWithPriorityReorder).not.toHaveBeenCalled()
     })
   })
 })

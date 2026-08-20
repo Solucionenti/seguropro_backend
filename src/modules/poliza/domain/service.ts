@@ -31,19 +31,10 @@ export interface UpdatePolizaServiceInput {
   polizaStatus?: PolizaStatus
 }
 
-export interface UpdatePolizaKanbanServiceInput {
-  kanbanId: string | null
-}
-
 export interface IPolizaService {
   list(pageable: Pageable, filters: ListPolizasFilters): Promise<Page<PolizaWithDetails>>
   create(input: CreatePolizaServiceInput): Promise<PolizaWithDetails>
   getById(id: string, companyId: string, clienteUserId?: string): Promise<PolizaWithDetails>
   update(id: string, companyId: string, input: UpdatePolizaServiceInput): Promise<PolizaWithDetails>
-  updateKanban(
-    id: string,
-    companyId: string,
-    input: UpdatePolizaKanbanServiceInput,
-  ): Promise<PolizaWithDetails>
   softDelete(id: string, companyId: string): Promise<void>
 }
