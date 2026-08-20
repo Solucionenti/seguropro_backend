@@ -129,10 +129,15 @@ Enums: `UserRole` (MASTER_ADMIN, OWNER, AGENT, CLIENT) · `ResourceStatus` (ACTI
 | `PAGINATION_DEFAULT_PAGE_SIZE` | `20` | Default page size |
 | `PAGINATION_MAX_PAGE_SIZE` | `100` | Max page size |
 | `API_URL` | `http://localhost:3000` | Public base URL of this API, used to build signed file urls |
-| `STORAGE_DRIVER` | `local` | File storage driver. Only `local` exists today |
+| `STORAGE_DRIVER` | `local` | File storage driver: `local` or `s3` |
 | `STORAGE_LOCAL_DIR` | `./storage` | Where the local driver writes binaries (gitignored) |
 | `STORAGE_SIGNED_URL_TTL_SECONDS` | `900` | Signed file url lifetime |
 | `STORAGE_MAX_FILE_SIZE_MB` | `10` | Per-file upload cap |
+| `S3_BUCKET` | — | Required when `STORAGE_DRIVER=s3` |
+| `S3_ENDPOINT` | — | Account-level S3 endpoint, required when driver is `s3` |
+| `S3_ACCESS_KEY_ID` | — | Required when `STORAGE_DRIVER=s3` |
+| `S3_SECRET_ACCESS_KEY` | — | Required when `STORAGE_DRIVER=s3` |
+| `S3_REGION` | `auto` | `auto` for R2; a real region for AWS |
 
 ## Commands
 
@@ -282,8 +287,12 @@ NEVER hand-compute `skip`/`take` or hardcode `orderBy: { createdAt: 'desc' }` �
 - CLIENT is read-only and only reaches siniestros linked to their own polizas.
 
 ### File Storage
-- `FileStorage` port lives in `shared/domain/file-storage.ts`. The ONLY implementation today is `LocalDiskFileStorage` (`shared/infrastructure/`), which keeps binaries on disk under `STORAGE_LOCAL_DIR` (gitignored) and is meant for dev/demo.
-- Production means adding ONE more adapter. R2, Backblaze B2, Supabase Storage and AWS S3 are all S3-compatible, so a single `S3FileStorage` covers all four — only the endpoint changes. Do NOT reach for Cloudinary: it caps raw files (PDF) at 10 MB on the free tier and needs its own signed-url model.
+- `FileStorage` port lives in `shared/domain/file-storage.ts` with two adapters, picked by `STORAGE_DRIVER`:
+  - `LocalDiskFileStorage` — binaries on disk under `STORAGE_LOCAL_DIR` (gitignored), urls signed with HMAC and served by this API. For dev/demo, needs no credentials.
+  - `S3FileStorage` — any S3-compatible provider (R2, Backblaze B2, Supabase Storage, AWS) by changing `S3_ENDPOINT`. The provider signs and serves the file itself.
+- `S3FileStorage` uses Bun's native `S3Client`. Do NOT install `@aws-sdk/client-s3` — it is not needed.
+- Do NOT reach for Cloudinary: it caps raw files (PDF) at 10 MB on the free tier and needs its own signed-url model, so it would not fit behind this port.
+- `env.ts` fails at boot if `STORAGE_DRIVER=s3` and any S3 var is missing, so a misconfigured deploy never reaches the first upload. Blank vars in `.env` are read as absent, not as invalid.
 - The DB persists `storageKey`, NEVER a url: signed urls expire, so the url is derived on every read via `signedUrl()`. `ArchivoPolizaView` is what leaves the backend and it has `url` but no `storageKey` — never leak the key.
 - `GET /api/v1/files/:storageKey` is intentionally PUBLIC: the HMAC `signature` + `expires` pair IS the authorization. It only serves the local driver; a cloud provider signs and serves its own urls, so that route becomes dead weight once an S3 adapter is wired.
 - Local keys are flat UUIDs validated against a regex, so there are no directories and no path traversal to defend against. Keep it that way.

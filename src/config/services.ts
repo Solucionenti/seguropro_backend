@@ -39,10 +39,12 @@ import { CompanyUserService } from '@/modules/user/application/company-user-serv
 import { UserService } from '@/modules/user/application/service'
 import { PrismaUserRepository } from '@/modules/user/infrastructure/prisma-repo'
 import { PrismaSuscripcionPlanProvider } from '@/modules/user/infrastructure/prisma-suscripcion-plan-provider'
+import type { FileStorage } from '@/shared/domain/file-storage'
 import { BunPasswordHasher } from '@/shared/infrastructure/bun-password-hasher'
 import { JoseJwtService } from '@/shared/infrastructure/jose-jwt-service'
 import { LocalDiskFileStorage } from '@/shared/infrastructure/local-disk-file-storage'
 import { ResendEmailSender } from '@/shared/infrastructure/resend-email-sender'
+import { S3FileStorage } from '@/shared/infrastructure/s3-file-storage'
 
 // --- instantiation (wiring) ---
 
@@ -69,13 +71,26 @@ const siniestroPolizaProvider = new PrismaPolizaProvider(prisma)
 const archivoPolizaRepo = new PrismaArchivoPolizaRepository(prisma)
 const archivoPolizaProvider = new PrismaArchivoPolizaProvider(prisma)
 const archivoPlanStorageProvider = new PrismaPlanStorageProvider(prisma)
-// swap this for an s3-compatible adapter (r2, b2, supabase, aws) when credentials exist
-const fileStorage = new LocalDiskFileStorage({
+// local keeps binaries on disk and signs urls this api serves; s3 works against any
+// s3-compatible provider (r2, b2, supabase, aws) and signs its own. env.ts guarantees
+// the s3 credentials exist whenever the driver is s3
+const localFileStorage = new LocalDiskFileStorage({
   dir: envConfig.STORAGE_LOCAL_DIR,
   apiUrl: envConfig.API_URL,
   secret: envConfig.JWT_SECRET,
   ttlSeconds: envConfig.STORAGE_SIGNED_URL_TTL_SECONDS,
 })
+const fileStorage: FileStorage =
+  envConfig.STORAGE_DRIVER === 's3'
+    ? new S3FileStorage({
+        bucket: envConfig.S3_BUCKET ?? '',
+        endpoint: envConfig.S3_ENDPOINT ?? '',
+        accessKeyId: envConfig.S3_ACCESS_KEY_ID ?? '',
+        secretAccessKey: envConfig.S3_SECRET_ACCESS_KEY ?? '',
+        region: envConfig.S3_REGION,
+        ttlSeconds: envConfig.STORAGE_SIGNED_URL_TTL_SECONDS,
+      })
+    : localFileStorage
 const passwordHasher = new BunPasswordHasher()
 const jwtService = new JoseJwtService({
   secret: envConfig.JWT_SECRET,
@@ -195,4 +210,4 @@ export const archivoPolizaServicePlugin = new Elysia({
 
 export const localFileStoragePlugin = new Elysia({
   name: '@app/services/local-file-storage',
-}).decorate('localFileStorage', fileStorage)
+}).decorate('localFileStorage', localFileStorage)

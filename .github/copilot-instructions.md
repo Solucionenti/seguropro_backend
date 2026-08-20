@@ -145,8 +145,8 @@
 - Nested routes are `/polizas/:id/archivos/:archivoId`. Keep the poliza segment named `:id` — Elysia's router demands the same parameter name at the same position and `polizaController` already uses `/polizas/:id`.
 
 ### File Storage
-- `FileStorage` port in `shared/domain/file-storage.ts`. Only `LocalDiskFileStorage` exists today (dev/demo, binaries on disk under `STORAGE_LOCAL_DIR`, gitignored).
-- Production = ONE more adapter. R2, Backblaze B2, Supabase Storage and AWS S3 are all S3-compatible, so a single `S3FileStorage` covers all four (endpoint changes only). Avoid Cloudinary: 10 MB raw-file cap on the free tier plus its own signed-url model.
+- `FileStorage` port in `shared/domain/file-storage.ts` with two adapters picked by `STORAGE_DRIVER`: `LocalDiskFileStorage` (dev/demo, disk + HMAC urls served by this API) and `S3FileStorage` (any S3-compatible provider via `S3_ENDPOINT`, signs its own urls).
+- `S3FileStorage` uses Bun's native `S3Client` — do NOT install `@aws-sdk/client-s3`. Avoid Cloudinary: 10 MB raw-file cap on the free tier plus its own signed-url model. `env.ts` fails at boot if the driver is `s3` and any S3 var is missing.
 - Persist `storageKey`, NEVER a url — signed urls expire, so the url is derived on each read. `ArchivoPolizaView` carries `url` and no `storageKey`; never leak the key.
 - `GET /api/v1/files/:storageKey` is public on purpose: the HMAC `signature` + `expires` pair IS the authorization. It serves the local driver only.
 - Local keys are flat UUIDs matched against a regex — no directories, so no path traversal. Keep it that way.
