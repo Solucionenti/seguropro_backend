@@ -84,8 +84,7 @@ export class AuthService implements IAuthService {
     })
   }
 
-  // El mismo email puede existir en varias companies: se envía un correo por
-  // cuenta, cada uno con su propio token ligado a ese userId.
+  // the same email can exist in several companies, so one mail per account
   async forgotPassword(email: string): Promise<void> {
     const users = await this.authUserProvider.findActiveByEmail(email)
 
@@ -117,7 +116,6 @@ export class AuthService implements IAuthService {
       throw new UnauthorizedError('Invalid or expired reset token')
     }
 
-    // El fingerprint cambia al guardar la nueva contraseña: token de un solo uso.
     const fingerprint = await this.jwtService.passwordFingerprint(user.passwordHash)
 
     if (fingerprint !== claims.pwd) {

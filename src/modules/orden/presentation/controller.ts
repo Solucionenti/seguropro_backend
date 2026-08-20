@@ -60,7 +60,7 @@ export const ordenController = new Elysia({ name: '@app/modules/orden', prefix: 
   )
 
   // ── OWNER self-service routes ────────────────────────
-  // Must be defined before /:id to avoid param shadowing
+  // registered before /:id so the static route wins
 
   .get(
     '/mis-ordenes',

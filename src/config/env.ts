@@ -13,6 +13,11 @@ const envSchema = z.object({
   APP_URL: z.string().url('APP_URL must be a valid URL').default('http://localhost:5173'),
   PAGINATION_DEFAULT_PAGE_SIZE: z.coerce.number().int().min(1).default(20),
   PAGINATION_MAX_PAGE_SIZE: z.coerce.number().int().min(1).default(100),
+  API_URL: z.string().url('API_URL must be a valid URL').default('http://localhost:3000'),
+  STORAGE_DRIVER: z.enum(['local']).default('local'),
+  STORAGE_LOCAL_DIR: z.string().min(1).default('./storage'),
+  STORAGE_SIGNED_URL_TTL_SECONDS: z.coerce.number().int().min(30).default(900),
+  STORAGE_MAX_FILE_SIZE_MB: z.coerce.number().positive().default(10),
 })
 
 export type Env = z.infer<typeof envSchema>
