@@ -37,19 +37,28 @@ export class ColumnaKanbanService implements IColumnaKanbanService {
     companyId: string,
     input: UpdateColumnaKanbanServiceInput,
   ): Promise<ColumnaKanban> {
-    await this.getById(id, companyId)
+    const current = await this.getById(id, companyId)
 
     if (input.prioridad !== undefined) {
       this.validatePrioridad(input.prioridad)
-      await this.ensurePrioridadIsAvailable(input.prioridad, companyId, id)
+
+      if (input.prioridad !== current.prioridad) {
+        return this.repo.updateWithPriorityReorder(
+          id,
+          companyId,
+          current.prioridad,
+          input.prioridad,
+          input,
+        )
+      }
     }
 
     return this.repo.update(id, input)
   }
 
   async hardDelete(id: string, companyId: string): Promise<void> {
-    await this.getById(id, companyId)
-    return this.repo.hardDelete(id)
+    const current = await this.getById(id, companyId)
+    return this.repo.hardDeleteWithPriorityReorder(id, companyId, current.prioridad)
   }
 
   private validatePrioridad(prioridad: number): void {
