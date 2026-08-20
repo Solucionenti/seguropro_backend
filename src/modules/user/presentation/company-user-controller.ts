@@ -55,8 +55,8 @@ export const companyUserController = new Elysia({
           withRole: [UserRole.OWNER],
           detail: {
             tags: ['Company Users'],
-            summary: 'List company agents',
-            description: 'Returns only AGENT users.',
+            summary: 'List company clients',
+            description: 'Returns only CLIENT users.',
           },
         },
       )

@@ -1,10 +1,18 @@
 import { Elysia } from 'elysia'
 import { prisma } from '@/config/database'
 import { envConfig } from '@/config/env'
+import { ArchivoPolizaService } from '@/modules/archivo-poliza/application/service'
+import { PrismaPlanStorageProvider } from '@/modules/archivo-poliza/infrastructure/prisma-plan-storage-provider'
+import { PrismaPolizaProvider as PrismaArchivoPolizaProvider } from '@/modules/archivo-poliza/infrastructure/prisma-poliza-provider'
+import { PrismaArchivoPolizaRepository } from '@/modules/archivo-poliza/infrastructure/prisma-repo'
 import { AseguradoraService } from '@/modules/aseguradora/application/service'
 import { PrismaAseguradoraRepository } from '@/modules/aseguradora/infrastructure/prisma-repo'
 import { AuthService } from '@/modules/auth/application/service'
 import { PrismaAuthUserProvider } from '@/modules/auth/infrastructure/prisma-auth-user-provider'
+import { ColumnaKanbanService } from '@/modules/columna-kanban/application/service'
+import { PrismaColumnaKanbanRepository } from '@/modules/columna-kanban/infrastructure/prisma-repo'
+import { CompanyService } from '@/modules/company/application/service'
+import { PrismaCompanyRepository } from '@/modules/company/infrastructure/prisma-repo'
 import { HealthService } from '@/modules/health/application/service'
 import { PrismaHealthRepository } from '@/modules/health/infrastructure/prisma-repo'
 import { OrdenService } from '@/modules/orden/application/service'
@@ -19,21 +27,31 @@ import { PrismaRamoProvider } from '@/modules/poliza/infrastructure/prisma-ramo-
 import { PrismaPolizaRepository } from '@/modules/poliza/infrastructure/prisma-repo'
 import { RamoService } from '@/modules/ramo/application/service'
 import { PrismaRamoRepository } from '@/modules/ramo/infrastructure/prisma-repo'
+import { SiniestroService } from '@/modules/siniestro/application/service'
+import { PrismaPolizaProvider } from '@/modules/siniestro/infrastructure/prisma-poliza-provider'
+import { PrismaSiniestroRepository } from '@/modules/siniestro/infrastructure/prisma-repo'
 import { SuscripcionService } from '@/modules/suscripcion/application/service'
 import { PrismaCompanyProvider } from '@/modules/suscripcion/infrastructure/prisma-company-provider'
 import { PrismaPlanProvider } from '@/modules/suscripcion/infrastructure/prisma-plan-provider'
 import { PrismaSuscripcionRepository } from '@/modules/suscripcion/infrastructure/prisma-repo'
+import { TareaKanbanService } from '@/modules/tarea-kanban/application/service'
+import { PrismaTareaKanbanColumnaProvider } from '@/modules/tarea-kanban/infrastructure/prisma-columna-kanban-provider'
+import { PrismaTareaKanbanPolizaProvider } from '@/modules/tarea-kanban/infrastructure/prisma-poliza-provider'
+import { PrismaTareaKanbanRepository } from '@/modules/tarea-kanban/infrastructure/prisma-repo'
 import { CompanyUserService } from '@/modules/user/application/company-user-service'
 import { UserService } from '@/modules/user/application/service'
 import { PrismaUserRepository } from '@/modules/user/infrastructure/prisma-repo'
 import { PrismaSuscripcionPlanProvider } from '@/modules/user/infrastructure/prisma-suscripcion-plan-provider'
 import { BunPasswordHasher } from '@/shared/infrastructure/bun-password-hasher'
 import { JoseJwtService } from '@/shared/infrastructure/jose-jwt-service'
+import { LocalDiskFileStorage } from '@/shared/infrastructure/local-disk-file-storage'
 import { ResendEmailSender } from '@/shared/infrastructure/resend-email-sender'
 
-// --- Instantiation (wiring) ---
+// --- instantiation (wiring) ---
 
 const aseguradoraRepo = new PrismaAseguradoraRepository(prisma)
+const columnaKanbanRepo = new PrismaColumnaKanbanRepository(prisma)
+const tareaKanbanRepo = new PrismaTareaKanbanRepository(prisma)
 const authUserProvider = new PrismaAuthUserProvider(prisma)
 const userRepo = new PrismaUserRepository(prisma)
 const healthRepo = new PrismaHealthRepository(prisma)
@@ -48,6 +66,21 @@ const polizaRepo = new PrismaPolizaRepository(prisma)
 const polizaAseguradoraProvider = new PrismaAseguradoraProvider(prisma)
 const polizaRamoProvider = new PrismaRamoProvider(prisma)
 const polizaClienteProvider = new PrismaClienteUserProvider(prisma)
+const tareaKanbanColumnaProvider = new PrismaTareaKanbanColumnaProvider(prisma)
+const tareaKanbanPolizaProvider = new PrismaTareaKanbanPolizaProvider(prisma)
+const companyRepo = new PrismaCompanyRepository(prisma)
+const siniestroRepo = new PrismaSiniestroRepository(prisma)
+const siniestroPolizaProvider = new PrismaPolizaProvider(prisma)
+const archivoPolizaRepo = new PrismaArchivoPolizaRepository(prisma)
+const archivoPolizaProvider = new PrismaArchivoPolizaProvider(prisma)
+const archivoPlanStorageProvider = new PrismaPlanStorageProvider(prisma)
+// swap this for an s3-compatible adapter (r2, b2, supabase, aws) when credentials exist
+const fileStorage = new LocalDiskFileStorage({
+  dir: envConfig.STORAGE_LOCAL_DIR,
+  apiUrl: envConfig.API_URL,
+  secret: envConfig.JWT_SECRET,
+  ttlSeconds: envConfig.STORAGE_SIGNED_URL_TTL_SECONDS,
+})
 const passwordHasher = new BunPasswordHasher()
 const jwtService = new JoseJwtService({
   secret: envConfig.JWT_SECRET,
@@ -61,6 +94,12 @@ const emailSender = new ResendEmailSender({
 })
 const suscripcionPlanProvider = new PrismaSuscripcionPlanProvider(prisma)
 const aseguradoraService = new AseguradoraService(aseguradoraRepo)
+const columnaKanbanService = new ColumnaKanbanService(columnaKanbanRepo)
+const tareaKanbanService = new TareaKanbanService(
+  tareaKanbanRepo,
+  tareaKanbanColumnaProvider,
+  tareaKanbanPolizaProvider,
+)
 const userService = new UserService(userRepo, passwordHasher)
 const companyUserService = new CompanyUserService(userRepo, passwordHasher, suscripcionPlanProvider)
 const healthService = new HealthService(healthRepo)
@@ -78,9 +117,18 @@ const polizaService = new PolizaService(
   polizaRamoProvider,
   polizaClienteProvider,
 )
+const companyService = new CompanyService(companyRepo)
+const siniestroService = new SiniestroService(siniestroRepo, siniestroPolizaProvider)
+const archivoPolizaService = new ArchivoPolizaService(
+  archivoPolizaRepo,
+  archivoPolizaProvider,
+  fileStorage,
+  archivoPlanStorageProvider,
+  { maxFileSizeBytes: envConfig.STORAGE_MAX_FILE_SIZE_MB * 1024 * 1024 },
+)
 
-// --- Per-module Elysia service plugins ---
-// Controllers `.use()` only the plugins they need.
+// --- per-module elysia service plugins ---
+// controllers use only the plugins they need
 
 export const jwtServicePlugin = new Elysia({ name: '@app/services/jwt' }).decorate(
   'jwtService',
@@ -122,6 +170,14 @@ export const aseguradoraServicePlugin = new Elysia({ name: '@app/services/asegur
   aseguradoraService,
 )
 
+export const columnaKanbanServicePlugin = new Elysia({
+  name: '@app/services/columna-kanban',
+}).decorate('columnaKanbanService', columnaKanbanService)
+
+export const tareaKanbanServicePlugin = new Elysia({
+  name: '@app/services/tarea-kanban',
+}).decorate('tareaKanbanService', tareaKanbanService)
+
 export const ramoServicePlugin = new Elysia({ name: '@app/services/ramo' }).decorate(
   'ramoService',
   ramoService,
@@ -135,3 +191,21 @@ export const polizaServicePlugin = new Elysia({ name: '@app/services/poliza' }).
 export const companyUserServicePlugin = new Elysia({
   name: '@app/services/company-user',
 }).decorate('companyUserService', companyUserService)
+
+export const companyServicePlugin = new Elysia({ name: '@app/services/company' }).decorate(
+  'companyService',
+  companyService,
+)
+
+export const siniestroServicePlugin = new Elysia({ name: '@app/services/siniestro' }).decorate(
+  'siniestroService',
+  siniestroService,
+)
+
+export const archivoPolizaServicePlugin = new Elysia({
+  name: '@app/services/archivo-poliza',
+}).decorate('archivoPolizaService', archivoPolizaService)
+
+export const localFileStoragePlugin = new Elysia({
+  name: '@app/services/local-file-storage',
+}).decorate('localFileStorage', fileStorage)

@@ -35,7 +35,6 @@ const clienteStub: ClienteBasicInfo = {
   lastName: 'Lopez',
   email: 'ana@example.com',
 }
-
 function createMockPoliza(overrides: Partial<PolizaWithDetails> = {}): PolizaWithDetails {
   return {
     id: 'poliza-1',

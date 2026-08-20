@@ -69,11 +69,14 @@ model Company {
   createdAt DateTime       @default(now())
   updatedAt DateTime       @updatedAt
 
-  users         User[]
-  suscripciones Suscripcion[]
-  aseguradoras  Aseguradora[]
-  ramos         Ramo[]
-  polizas       Poliza[]
+  users          User[]
+  suscripciones  Suscripcion[]
+  aseguradoras   Aseguradora[]
+  ramos          Ramo[]
+  columnasKanban ColumnaKanban[]
+  tareasKanban   TareaKanban[]
+  polizas        Poliza[]
+  siniestros     Siniestro[]
 
   @@map("companies")
 }
@@ -97,6 +100,9 @@ model User {
   company            Company?        @relation(fields: [companyId], references: [id])
   polizasComoCliente Poliza[]        @relation("PolizaCliente")
   detalleCliente     DetalleCliente?
+
+  siniestrosComoCliente Siniestro[] @relation("SiniestroCliente")
+  siniestrosCreados     Siniestro[] @relation("SiniestroCreadoPor")
 
   @@unique([companyId, email], name: "company_email_unique")
   @@map("users")
@@ -204,6 +210,24 @@ model Ramo {
   @@map("ramos")
 }
 
+model ColumnaKanban {
+  id        String @id @default(uuid())
+  companyId String
+  nombre    String
+  prioridad Int
+
+  status    ResourceStatus @default(ACTIVE)
+  createdAt DateTime       @default(now())
+  updatedAt DateTime       @updatedAt
+
+  company Company       @relation(fields: [companyId], references: [id])
+  tareas  TareaKanban[]
+
+  @@unique([companyId, prioridad], name: "columna_kanban_company_prioridad_unique")
+  @@index([companyId, nombre])
+  @@map("columnas_kanban")
+}
+
 model Poliza {
   id               String       @id @default(uuid())
   companyId        String
@@ -222,14 +246,38 @@ model Poliza {
   createdAt DateTime       @default(now())
   updatedAt DateTime       @updatedAt
 
-  company     Company     @relation(fields: [companyId], references: [id])
-  aseguradora Aseguradora @relation(fields: [aseguradoraId], references: [id])
-  ramo        Ramo        @relation(fields: [ramoId], references: [id])
-  cliente     User        @relation("PolizaCliente", fields: [clienteUserId], references: [id])
+  company      Company       @relation(fields: [companyId], references: [id])
+  aseguradora  Aseguradora   @relation(fields: [aseguradoraId], references: [id])
+  ramo         Ramo          @relation(fields: [ramoId], references: [id])
+  cliente      User          @relation("PolizaCliente", fields: [clienteUserId], references: [id])
+  tareasKanban TareaKanban[]
+  siniestros   Siniestro[]
+  archivos     ArchivoPoliza[]
 
   @@unique([companyId, numeroPoliza], name: "poliza_company_numero_unique")
   @@index([companyId, clienteUserId])
   @@map("polizas")
+}
+
+model TareaKanban {
+  id              String  @id @default(uuid())
+  companyId       String
+  columnaKanbanId String?
+  polizaId        String?
+  titulo          String
+  descripcion     String?
+
+  status    ResourceStatus @default(ACTIVE)
+  createdAt DateTime       @default(now())
+  updatedAt DateTime       @updatedAt
+
+  company       Company        @relation(fields: [companyId], references: [id])
+  columnaKanban ColumnaKanban? @relation(fields: [columnaKanbanId], references: [id], onDelete: SetNull)
+  poliza        Poliza?        @relation(fields: [polizaId], references: [id], onDelete: SetNull)
+
+  @@index([companyId, columnaKanbanId])
+  @@index([companyId, polizaId])
+  @@map("tareas_kanban")
 }
 
 model DetalleCliente {
@@ -251,4 +299,61 @@ model DetalleCliente {
   user User @relation(fields: [userId], references: [id])
 
   @@map("detalle_clientes")
+}
+
+enum SiniestroStatus {
+  REPORTADO
+  EN_REVISION
+  APROBADO
+  RECHAZADO
+  PAGADO
+  CERRADO
+}
+
+model Siniestro {
+  id              String          @id @default(uuid())
+  companyId       String
+  polizaId        String
+  clienteUserId   String
+  creadoPorUserId String
+  tipoSiniestro   String?
+  fechaEvento     DateTime
+  descripcion     String?
+  ajustador       String?
+  montoEstimado   Float?
+  montoPagado     Float?
+  siniestroStatus SiniestroStatus @default(REPORTADO)
+  active          Boolean         @default(true)
+
+  status    ResourceStatus @default(ACTIVE)
+  createdAt DateTime       @default(now())
+  updatedAt DateTime       @updatedAt
+
+  company   Company @relation(fields: [companyId], references: [id])
+  poliza    Poliza  @relation(fields: [polizaId], references: [id])
+  cliente   User    @relation("SiniestroCliente", fields: [clienteUserId], references: [id])
+  creadoPor User    @relation("SiniestroCreadoPor", fields: [creadoPorUserId], references: [id])
+
+  @@index([companyId, polizaId])
+  @@index([companyId, clienteUserId])
+  @@map("siniestros")
+}
+
+model ArchivoPoliza {
+  id          String  @id @default(uuid())
+  polizaId    String
+  nombre      String
+  mimeType    String
+  storageKey  String
+  tamanoBytes Int
+  active      Boolean @default(true)
+
+  status    ResourceStatus @default(ACTIVE)
+  createdAt DateTime       @default(now())
+  updatedAt DateTime       @updatedAt
+
+  poliza Poliza @relation(fields: [polizaId], references: [id])
+
+  @@index([polizaId])
+  @@map("archivos_polizas")
 }

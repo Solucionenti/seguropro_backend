@@ -1,8 +1,7 @@
 import { describe, expect, it } from 'bun:test'
 import { app } from '@/app'
 
-// Regresión: si el hook `onError` del errorHandler deja de ser `as: 'global'`,
-// Elysia responde el error crudo en texto plano con status 500 y estos fallan.
+// regression: if errorHandler's onError stops being as: 'global' these fail with a raw 500
 describe('AppError responses', () => {
   it('should return 401 with the ApiResponse shape when the Bearer token is missing', async () => {
     const response = await app.handle(new Request('http://localhost/api/v1/users/me'))

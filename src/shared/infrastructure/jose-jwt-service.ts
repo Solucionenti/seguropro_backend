@@ -72,8 +72,7 @@ export class JoseJwtService implements JwtService {
     }
   }
 
-  // Deriva un identificador estable del hash actual: al cambiar la contraseña el
-  // token deja de validar, lo que lo vuelve de un solo uso sin tabla en BD.
+  // changing the password changes this, which makes the token single-use with no db table
   async passwordFingerprint(passwordHash: string): Promise<string> {
     const digest = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(passwordHash))
     return Buffer.from(digest).toString('base64url').slice(0, 22)

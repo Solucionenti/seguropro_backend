@@ -28,6 +28,8 @@ export interface ICompanyUserService {
     requestorRole: UserRole,
     pageable: Pageable,
   ): Promise<Page<User>>
+  listCompanyAgents(companyId: string, pageable: Pageable): Promise<Page<User>>
+  listCompanyClients(companyId: string, pageable: Pageable): Promise<Page<User>>
   createAgent(companyId: string, input: CreateAgentInput): Promise<UserWithDetalle>
   createClient(companyId: string, input: CreateClientInput): Promise<UserWithDetalle>
   getCompanyUser(companyId: string, id: string, requestorRole: UserRole): Promise<UserWithDetalle>

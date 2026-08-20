@@ -110,11 +110,12 @@
 - The `User` domain entity does NOT include `passwordHash`. Repository `CreateUserInput` includes it for writes.
 
 ### Soft Deletion (CRITICAL)
-- **NEVER** perform real deletion (DELETE) on any entity. ALL deletions MUST be soft: set `status = 'DELETED'`.
+- **By default, never** perform real deletion (DELETE) on any entity. ALL deletions MUST be soft: set `status = 'DELETED'`.
 - Repository `delete` methods MUST be named `softDelete` and MUST only update `status` to `'DELETED'`.
 - ALL read queries MUST filter by `status: 'ACTIVE'` by default. Use `findFirst` with `status: 'ACTIVE'` instead of `findUnique` where applicable.
 - `ResourceStatus` enum values: `ACTIVE` (normal), `INACTIVE` (disabled but preserved), `DELETED` (soft-deleted).
 - If a hard delete is truly needed (e.g. GDPR), it must be a separate, explicitly named method and requires explicit approval.
+- Explicit feature exception: `ColumnaKanban` and `TareaKanban` use `hardDelete` and physical DELETE endpoints. Their optional foreign keys use `ON DELETE SET NULL` so deleting a column or policy preserves task records.
 
 ### Auth
 - **JWT**: `jose` library via `JwtService` interface (`src/shared/domain/jwt-service.ts`) + `JoseJwtService` class (`src/shared/infrastructure/jose-jwt-service.ts`). Access + refresh token pair. JWT payload includes `sub`, `role`, and `companyId` for tenant isolation.
@@ -131,6 +132,35 @@
 - **No account enumeration**: `POST /auth/forgot-password` ALWAYS returns the same 200 response whether or not the email exists. Never branch the response on user existence.
 - **Email boundary**: `EmailSender` port in `src/shared/domain/email-sender.ts`; `ResendEmailSender` (`src/shared/infrastructure/resend-email-sender.ts`) renders the React Email template and POSTs to `https://api.resend.com/emails`. The application layer passes plain data only — never HTML, never React.
 - Sending is synchronous inside the request. Move to a queue only if request latency becomes a measured problem.
+
+### Siniestros
+- `clienteUserId` is ALWAYS derived from the poliza inside `SiniestroService.create`, never taken from the request body — the claim belongs to whoever owns the policy. `creadoPorUserId` comes from the JWT.
+- `fechaEvento` MUST be inside the poliza coverage window (`fechaInicio..fechaVencimiento`) and MUST NOT be in the future.
+- `companyId`, `polizaId` and `clienteUserId` are immutable after creation. CLIENT is read-only and scoped to their own polizas.
+
+### Archivos de Poliza
+- Only metadata is persisted (`nombre`, `mimeType`, `url`, `tamanoBytes`). Never store binaries in the DB — upload to the storage provider and send the `url`.
+- The allowed `mimeType` allow-list lives in `ArchivoPolizaService` (application layer), not in the Zod schema.
+- Access is scoped through the poliza and a foreign poliza yields `NotFoundError` (never `ForbiddenError`), so it is indistinguishable from a missing one.
+- Nested routes are `/polizas/:id/archivos/:archivoId`. Keep the poliza segment named `:id` — Elysia's router demands the same parameter name at the same position and `polizaController` already uses `/polizas/:id`.
+
+### File Storage
+- `FileStorage` port in `shared/domain/file-storage.ts`. Only `LocalDiskFileStorage` exists today (dev/demo, binaries on disk under `STORAGE_LOCAL_DIR`, gitignored).
+- Production = ONE more adapter. R2, Backblaze B2, Supabase Storage and AWS S3 are all S3-compatible, so a single `S3FileStorage` covers all four (endpoint changes only). Avoid Cloudinary: 10 MB raw-file cap on the free tier plus its own signed-url model.
+- Persist `storageKey`, NEVER a url — signed urls expire, so the url is derived on each read. `ArchivoPolizaView` carries `url` and no `storageKey`; never leak the key.
+- `GET /api/v1/files/:storageKey` is public on purpose: the HMAC `signature` + `expires` pair IS the authorization. It serves the local driver only.
+- Local keys are flat UUIDs matched against a regex — no directories, so no path traversal. Keep it that way.
+
+### Archivos de Poliza
+- Per RF-ARCH-02 the BACKEND uploads the binary: the client sends `multipart/form-data` with a `file` field, never a pre-existing url.
+- mimeType allow-list, max file size and plan storage limit all live in `ArchivoPolizaService`, not in the Zod schema.
+- `mimeType`, `storageKey` and `polizaId` are immutable; `PATCH` only renames. Replace a binary by uploading a new file and deactivating the old row.
+- Soft-delete keeps the binary in the storage provider on purpose, for traceability.
+
+### Mi Empresa (RF-OWNER-09 / RF-OWNER-10)
+- `GET/PUT /companies/mi-empresa` take the company from the JWT `companyId`, never from the URL or body — an OWNER structurally cannot reach another tenant. Never add an id param to these routes.
+- `PUT` is a full replacement: `emailContacto` and `telefonoContacto` required, every other editable field nulled when omitted. Need a partial update? Add a separate `PATCH`, do not soften the `PUT`.
+- `id`, `status` and the subscription are not editable here. An INACTIVE company is unreadable and therefore uneditable (`NotFoundError`).
 
 ### Multi-Tenant Model
 - Each **Company (Empresa)** is an isolated tenant. All data queries must be scoped by `companyId`.
@@ -179,6 +209,11 @@ Each feature module lives in `src/modules/[feature]/` with 4 layers:
 - Kebab-case filenames (e.g. `app-error.ts`, `prisma-repo.ts`, `public-router.ts`)
 - Zod schemas live in `presentation/schemas.ts` of each module
 - Use `type` keyword for type-only imports (`import type { ... }`)
+- Write as few comments as possible: only when the WHY is non-obvious, never restating the code
+- Comments MUST be English, all lowercase, no trailing period — a short note, not prose
+- Identifiers, types and helpers MUST be English. Only the insurance domain vocabulary already
+  fixed in `prisma/schema.prisma` (`Poliza`, `Siniestro`, `Aseguradora`, `Ramo`, `montoEstimado`, …)
+  stays in Spanish. Never mix a Spanish verb into a helper name
 
 ## Testing
 
