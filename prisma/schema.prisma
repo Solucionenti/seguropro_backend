@@ -331,10 +331,11 @@ model Siniestro {
   createdAt DateTime       @default(now())
   updatedAt DateTime       @updatedAt
 
-  company   Company @relation(fields: [companyId], references: [id])
-  poliza    Poliza  @relation(fields: [polizaId], references: [id])
-  cliente   User    @relation("SiniestroCliente", fields: [clienteUserId], references: [id])
-  creadoPor User    @relation("SiniestroCreadoPor", fields: [creadoPorUserId], references: [id])
+  company   Company            @relation(fields: [companyId], references: [id])
+  poliza    Poliza             @relation(fields: [polizaId], references: [id])
+  cliente   User               @relation("SiniestroCliente", fields: [clienteUserId], references: [id])
+  creadoPor User               @relation("SiniestroCreadoPor", fields: [creadoPorUserId], references: [id])
+  archivos  ArchivoSiniestro[]
 
   @@index([companyId, polizaId])
   @@index([companyId, clienteUserId])
@@ -358,4 +359,23 @@ model ArchivoPoliza {
 
   @@index([polizaId])
   @@map("archivos_polizas")
+}
+
+model ArchivoSiniestro {
+  id          String  @id @default(uuid())
+  siniestroId String
+  nombre      String
+  mimeType    String
+  storageKey  String
+  tamanoBytes Int
+  active      Boolean @default(true)
+
+  status    ResourceStatus @default(ACTIVE)
+  createdAt DateTime       @default(now())
+  updatedAt DateTime       @updatedAt
+
+  siniestro Siniestro @relation(fields: [siniestroId], references: [id])
+
+  @@index([siniestroId])
+  @@map("archivos_siniestros")
 }

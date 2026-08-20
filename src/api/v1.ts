@@ -1,6 +1,7 @@
 import { Elysia } from 'elysia'
 import { archivoPolizaController } from '@/modules/archivo-poliza/presentation/controller'
 import { fileController } from '@/modules/archivo-poliza/presentation/file-controller'
+import { archivoSiniestroController } from '@/modules/archivo-siniestro/presentation/controller'
 import { aseguradoraController } from '@/modules/aseguradora/presentation/controller'
 import { authController } from '@/modules/auth/presentation/controller'
 import { columnaKanbanController } from '@/modules/columna-kanban/presentation/controller'
@@ -32,4 +33,5 @@ export const v1 = new Elysia({ name: '@app/api/v1', prefix: '/api/v1' })
   .use(polizaController)
   .use(siniestroController)
   .use(archivoPolizaController)
+  .use(archivoSiniestroController)
   .use(fileController)

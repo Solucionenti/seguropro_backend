@@ -1,9 +1,10 @@
+import { ALLOWED_MIME_TYPES } from '@/shared/domain/allowed-mime-types'
 import type { FileStorage } from '@/shared/domain/file-storage'
 import { NotFoundError } from '@/shared/domain/not-found-error'
 import { Page, type Pageable } from '@/shared/domain/pagination'
+import type { StorageQuota } from '@/shared/domain/storage-quota'
 import { ValidationError } from '@/shared/domain/validation-error'
 import type { ArchivoPoliza, ArchivoPolizaView } from '../domain/entities'
-import type { PlanStorageProvider } from '../domain/plan-storage-provider'
 import type { PolizaProvider } from '../domain/poliza-provider'
 import type { ArchivoPolizaRepository } from '../domain/repository'
 import type {
@@ -11,20 +12,6 @@ import type {
   IArchivoPolizaService,
   UploadArchivoPolizaInput,
 } from '../domain/service'
-
-// business rule, kept out of the zod schema so it has a single owner
-const ALLOWED_MIME_TYPES = new Set([
-  'application/pdf',
-  'image/jpeg',
-  'image/png',
-  'image/webp',
-  'application/msword',
-  'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-  'application/vnd.ms-excel',
-  'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-])
-
-const BYTES_PER_GB = 1024 ** 3
 
 interface ArchivoPolizaConfig {
   maxFileSizeBytes: number
@@ -35,7 +22,7 @@ export class ArchivoPolizaService implements IArchivoPolizaService {
     private readonly repo: ArchivoPolizaRepository,
     private readonly polizaProvider: PolizaProvider,
     private readonly storage: FileStorage,
-    private readonly planStorageProvider: PlanStorageProvider,
+    private readonly storageQuota: StorageQuota,
     private readonly config: ArchivoPolizaConfig,
   ) {}
 
@@ -65,7 +52,7 @@ export class ArchivoPolizaService implements IArchivoPolizaService {
       )
     }
 
-    await this.assertPlanStorageLimit(scope.companyId, sizeBytes)
+    await this.storageQuota.assertCanStore(scope.companyId, sizeBytes)
 
     const stored = await this.storage.upload({
       body: input.body,
@@ -125,16 +112,6 @@ export class ArchivoPolizaService implements IArchivoPolizaService {
     }
     if (scope.clienteUserId && poliza.clienteUserId !== scope.clienteUserId) {
       throw new NotFoundError('Poliza', scope.polizaId)
-    }
-  }
-
-  private async assertPlanStorageLimit(companyId: string, incomingBytes: number): Promise<void> {
-    const limitGB = await this.planStorageProvider.findLimitGBForCompany(companyId)
-    if (limitGB === null) return
-
-    const usedBytes = await this.repo.sumBytesByCompany(companyId)
-    if (usedBytes + incomingBytes > limitGB * BYTES_PER_GB) {
-      throw new ValidationError(`storage limit of ${limitGB} GB exceeded for this company`)
     }
   }
 

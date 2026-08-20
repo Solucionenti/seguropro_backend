@@ -2,9 +2,11 @@ import { Elysia } from 'elysia'
 import { prisma } from '@/config/database'
 import { envConfig } from '@/config/env'
 import { ArchivoPolizaService } from '@/modules/archivo-poliza/application/service'
-import { PrismaPlanStorageProvider } from '@/modules/archivo-poliza/infrastructure/prisma-plan-storage-provider'
 import { PrismaPolizaProvider as PrismaArchivoPolizaProvider } from '@/modules/archivo-poliza/infrastructure/prisma-poliza-provider'
 import { PrismaArchivoPolizaRepository } from '@/modules/archivo-poliza/infrastructure/prisma-repo'
+import { ArchivoSiniestroService } from '@/modules/archivo-siniestro/application/service'
+import { PrismaArchivoSiniestroRepository } from '@/modules/archivo-siniestro/infrastructure/prisma-repo'
+import { PrismaSiniestroProvider as PrismaArchivoSiniestroProvider } from '@/modules/archivo-siniestro/infrastructure/prisma-siniestro-provider'
 import { AseguradoraService } from '@/modules/aseguradora/application/service'
 import { PrismaAseguradoraRepository } from '@/modules/aseguradora/infrastructure/prisma-repo'
 import { AuthService } from '@/modules/auth/application/service'
@@ -46,6 +48,7 @@ import type { FileStorage } from '@/shared/domain/file-storage'
 import { BunPasswordHasher } from '@/shared/infrastructure/bun-password-hasher'
 import { JoseJwtService } from '@/shared/infrastructure/jose-jwt-service'
 import { LocalDiskFileStorage } from '@/shared/infrastructure/local-disk-file-storage'
+import { PrismaStorageQuota } from '@/shared/infrastructure/prisma-storage-quota'
 import { ResendEmailSender } from '@/shared/infrastructure/resend-email-sender'
 import { S3FileStorage } from '@/shared/infrastructure/s3-file-storage'
 
@@ -75,7 +78,9 @@ const siniestroRepo = new PrismaSiniestroRepository(prisma)
 const siniestroPolizaProvider = new PrismaPolizaProvider(prisma)
 const archivoPolizaRepo = new PrismaArchivoPolizaRepository(prisma)
 const archivoPolizaProvider = new PrismaArchivoPolizaProvider(prisma)
-const archivoPlanStorageProvider = new PrismaPlanStorageProvider(prisma)
+const storageQuota = new PrismaStorageQuota(prisma)
+const archivoSiniestroRepo = new PrismaArchivoSiniestroRepository(prisma)
+const archivoSiniestroProvider = new PrismaArchivoSiniestroProvider(prisma)
 // local keeps binaries on disk and signs urls this api serves; s3 works against any
 // s3-compatible provider (r2, b2, supabase, aws) and signs its own. env.ts guarantees
 // the s3 credentials exist whenever the driver is s3
@@ -134,11 +139,18 @@ const polizaService = new PolizaService(
 )
 const companyService = new CompanyService(companyRepo)
 const siniestroService = new SiniestroService(siniestroRepo, siniestroPolizaProvider)
+const archivoSiniestroService = new ArchivoSiniestroService(
+  archivoSiniestroRepo,
+  archivoSiniestroProvider,
+  fileStorage,
+  storageQuota,
+  { maxFileSizeBytes: envConfig.STORAGE_MAX_FILE_SIZE_MB * 1024 * 1024 },
+)
 const archivoPolizaService = new ArchivoPolizaService(
   archivoPolizaRepo,
   archivoPolizaProvider,
   fileStorage,
-  archivoPlanStorageProvider,
+  storageQuota,
   { maxFileSizeBytes: envConfig.STORAGE_MAX_FILE_SIZE_MB * 1024 * 1024 },
 )
 
@@ -224,3 +236,7 @@ export const archivoPolizaServicePlugin = new Elysia({
 export const localFileStoragePlugin = new Elysia({
   name: '@app/services/local-file-storage',
 }).decorate('localFileStorage', localFileStorage)
+
+export const archivoSiniestroServicePlugin = new Elysia({
+  name: '@app/services/archivo-siniestro',
+}).decorate('archivoSiniestroService', archivoSiniestroService)

@@ -33,19 +33,6 @@ export class PrismaArchivoPolizaRepository implements ArchivoPolizaRepository {
     })
   }
 
-  async sumBytesByCompany(companyId: string): Promise<number> {
-    const result = await this.prisma.archivoPoliza.aggregate({
-      where: {
-        status: ResourceStatus.ACTIVE,
-        active: true,
-        poliza: { companyId },
-      },
-      _sum: { tamanoBytes: true },
-    })
-
-    return result._sum.tamanoBytes ?? 0
-  }
-
   async create(input: CreateArchivoPolizaInput): Promise<ArchivoPoliza> {
     return this.prisma.archivoPoliza.create({ data: input })
   }

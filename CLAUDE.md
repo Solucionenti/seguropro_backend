@@ -86,6 +86,8 @@ prisma/schema.prisma                 # Single source of truth for models and enu
 | | `POST /api/v1/siniestros`, `PATCH/DELETE /api/v1/siniestros/:id` | `OWNER`, `AGENT` |
 | `archivo-poliza` | `GET /api/v1/polizas/:id/archivos`, `GET /api/v1/polizas/:id/archivos/:archivoId` | `OWNER`, `AGENT`, `CLIENT` (own polizas) |
 | | `POST /api/v1/polizas/:id/archivos` (multipart), `PATCH/DELETE /api/v1/polizas/:id/archivos/:archivoId` | `OWNER`, `AGENT` |
+| `archivo-siniestro` | `GET /api/v1/siniestros/:id/archivos`, `GET /api/v1/siniestros/:id/archivos/:archivoId` | `OWNER`, `AGENT`, `CLIENT` (own siniestros) |
+| | `POST /api/v1/siniestros/:id/archivos` (multipart), `PATCH/DELETE /api/v1/siniestros/:id/archivos/:archivoId` | `OWNER`, `AGENT` |
 | | `GET /api/v1/files/:storageKey?expires=&signature=` | Public (signed url) |
 
 ## Current Prisma Models
@@ -111,6 +113,8 @@ Siniestro    id, companyId, polizaId, clienteUserId, creadoPorUserId, tipoSinies
              @@index([companyId, polizaId]) · @@index([companyId, clienteUserId])
 ArchivoPoliza id, polizaId, nombre, mimeType, storageKey, tamanoBytes, active, status, createdAt, updatedAt
              @@index([polizaId]) · only metadata + storageKey; binaries live in the storage provider
+ArchivoSiniestro id, siniestroId, nombre, mimeType, storageKey, tamanoBytes, active, status, createdAt, updatedAt
+             @@index([siniestroId]) · same shape as ArchivoPoliza
 ```
 
 Enums: `UserRole` (MASTER_ADMIN, OWNER, AGENT, CLIENT) · `ResourceStatus` (ACTIVE, INACTIVE, DELETED) · `TipoPersona` (FISICA, MORAL) · `Periodicidad` (MENSUAL, TRIMESTRAL, SEMESTRAL, ANUAL) · `SuscripcionStatus` (TRIAL, ACTIVA, CANCELADA, VENCIDA, SUSPENDIDA) · `OrdenStatus` (PENDIENTE, PAGADA, FALLIDA, CANCELADA) · `PolizaStatus` (COTIZACION, VIGENTE, PROXIMA_A_VENCER, VENCIDA, CANCELADA, RENOVADA) · `SiniestroStatus` (REPORTADO, EN_REVISION, APROBADO, RECHAZADO, PAGADO, CERRADO)
@@ -300,13 +304,15 @@ NEVER hand-compute `skip`/`take` or hardcode `orderBy: { createdAt: 'desc' }` �
 - `GET /api/v1/files/:storageKey` is intentionally PUBLIC: the HMAC `signature` + `expires` pair IS the authorization. It only serves the local driver; a cloud provider signs and serves its own urls, so that route becomes dead weight once an S3 adapter is wired.
 - Local keys are flat UUIDs validated against a regex, so there are no directories and no path traversal to defend against. Keep it that way.
 
-### Archivos de Poliza
-- Per RF-ARCH-02, THE BACKEND uploads the binary — the client sends `multipart/form-data` with a `file` field, not a pre-existing url.
+### Archivos (Poliza y Siniestro)
+`archivo-poliza` (RF-ARCH-01..05) and `archivo-siniestro` (RF-ARCH-SIN-01..05) are deliberate twins: same shape, same rules, different owning entity. Change one, change the other.
+- THE BACKEND uploads the binary — the client sends `multipart/form-data` with a `file` field, never a pre-existing url.
 - The DB stores ONLY metadata (`nombre`, `mimeType`, `storageKey`, `tamanoBytes`). Binaries NEVER touch the database.
-- The allowed `mimeType` list, the max file size and the plan storage limit all live in `ArchivoPolizaService` (application layer), NOT in the Zod schema, so each rule has a single owner.
-- The plan storage cap comes from `PlanStorageProvider` (`limiteAlmacenamientoGB` of the active TRIAL/ACTIVA subscription). `null` means no cap and short-circuits before the usage query.
-- `mimeType`, `storageKey` and `polizaId` are immutable: `PATCH` only renames. To replace a binary, upload a new file and deactivate the old row.
+- `ALLOWED_MIME_TYPES` lives in `shared/domain/allowed-mime-types.ts` — ONE owner for both modules. The max file size stays per-service config. Neither rule belongs in a Zod schema.
+- The plan storage cap goes through the `StorageQuota` port (`shared/domain/storage-quota.ts`). `PrismaStorageQuota` sums `archivos_polizas` AND `archivos_siniestros` for the company, because the cap is per company and spans every file type. Counting a single table would let a company blow past its plan by splitting uploads. `null` limit means no cap and short-circuits before the usage query.
+- `mimeType`, `storageKey` and the owning id are immutable: `PATCH` only renames. To replace a binary, upload a new file and deactivate the old row.
 - Soft-deleting a row leaves the binary in the storage provider on purpose — the record is kept for traceability.
+- Both nest as `/<owner>/:id/archivos/:archivoId`. The owner segment MUST stay `:id`: Elysia requires the same parameter name at the same position, and `polizaController` / `siniestroController` already register `/:id`.
 - Every operation is scoped through the poliza: `assertPolizaAccessible` resolves the poliza by `companyId` (and by `clienteUserId` when the caller is a CLIENT) and throws `NotFoundError` — never `ForbiddenError` — so a foreign poliza is indistinguishable from a missing one.
 - Routes are nested as `/polizas/:id/archivos/:archivoId`. The poliza segment MUST stay named `:id`: Elysia's router requires the same parameter name at the same position, and `polizaController` already registers `/polizas/:id`.
 

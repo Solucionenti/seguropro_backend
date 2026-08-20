@@ -151,11 +151,14 @@
 - `GET /api/v1/files/:storageKey` is public on purpose: the HMAC `signature` + `expires` pair IS the authorization. It serves the local driver only.
 - Local keys are flat UUIDs matched against a regex — no directories, so no path traversal. Keep it that way.
 
-### Archivos de Poliza
-- Per RF-ARCH-02 the BACKEND uploads the binary: the client sends `multipart/form-data` with a `file` field, never a pre-existing url.
-- mimeType allow-list, max file size and plan storage limit all live in `ArchivoPolizaService`, not in the Zod schema.
-- `mimeType`, `storageKey` and `polizaId` are immutable; `PATCH` only renames. Replace a binary by uploading a new file and deactivating the old row.
+### Archivos (Poliza y Siniestro)
+`archivo-poliza` and `archivo-siniestro` are deliberate twins: same shape and rules, different owning entity. Change one, change the other.
+- The BACKEND uploads the binary: the client sends `multipart/form-data` with a `file` field, never a pre-existing url.
+- `ALLOWED_MIME_TYPES` lives in `shared/domain/allowed-mime-types.ts` — one owner for both modules. Max file size is per-service config. Neither belongs in a Zod schema.
+- The plan cap goes through the `StorageQuota` port; `PrismaStorageQuota` sums BOTH file tables because the cap is per company. Counting one table would let a company exceed its plan by splitting uploads.
+- `mimeType`, `storageKey` and the owning id are immutable; `PATCH` only renames.
 - Soft-delete keeps the binary in the storage provider on purpose, for traceability.
+- Both nest as `/<owner>/:id/archivos/:archivoId` — keep the owner segment named `:id`.
 
 ### Mi Empresa (RF-OWNER-09 / RF-OWNER-10)
 - `GET/PUT /companies/mi-empresa` take the company from the JWT `companyId`, never from the URL or body — an OWNER structurally cannot reach another tenant. Never add an id param to these routes.
