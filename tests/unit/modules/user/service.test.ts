@@ -65,6 +65,8 @@ function createMocks() {
     findOwnerWithCompany: mock(() => Promise.resolve(null)),
     findCompleteOwner: mock(() => Promise.resolve(null)),
     countActiveMasterAdmins: mock(() => Promise.resolve(1)),
+    countActiveOwnersByCompany: mock(() => Promise.resolve(1)),
+    isCompanyActive: mock(() => Promise.resolve(true)),
     countActiveCompanyUsers: mock(() => Promise.resolve(0)),
     findCompanyUsers: mock(() => Promise.resolve(Page.empty<User>(defaultPageable))),
     findCompanyUserById: mock(() => Promise.resolve(null)),
@@ -325,9 +327,10 @@ describe('UserService', () => {
   })
 
   describe('deleteOwner', () => {
-    it('should soft-delete owner', async () => {
+    it('should soft-delete owner when the company keeps another active OWNER', async () => {
       const owner = createMockUser({ role: UserRole.OWNER, companyId: 'company-1' })
       mocks.repo.findById.mockResolvedValue(owner)
+      mocks.repo.countActiveOwnersByCompany.mockResolvedValue(2)
 
       await service.deleteOwner('user-1')
 
@@ -338,6 +341,42 @@ describe('UserService', () => {
       mocks.repo.findById.mockResolvedValue(createMockUser({ role: UserRole.AGENT }))
 
       expect(service.deleteOwner('user-1')).rejects.toBeInstanceOf(NotFoundError)
+    })
+
+    // RF-OWNER-05: an active company cannot be left without an active OWNER
+    it('should refuse to deactivate the last active OWNER of an active company', async () => {
+      mocks.repo.findById.mockResolvedValue(
+        createMockUser({ role: UserRole.OWNER, companyId: 'company-1' }),
+      )
+      mocks.repo.isCompanyActive.mockResolvedValue(true)
+      mocks.repo.countActiveOwnersByCompany.mockResolvedValue(1)
+
+      await expect(service.deleteOwner('user-1')).rejects.toBeInstanceOf(ValidationError)
+      expect(mocks.repo.softDelete).not.toHaveBeenCalled()
+    })
+
+    it('should allow deactivating the last OWNER when the company is no longer active', async () => {
+      mocks.repo.findById.mockResolvedValue(
+        createMockUser({ role: UserRole.OWNER, companyId: 'company-1' }),
+      )
+      mocks.repo.isCompanyActive.mockResolvedValue(false)
+      mocks.repo.countActiveOwnersByCompany.mockResolvedValue(1)
+
+      await service.deleteOwner('user-1')
+
+      expect(mocks.repo.softDelete).toHaveBeenCalledWith('user-1')
+      expect(mocks.repo.countActiveOwnersByCompany).not.toHaveBeenCalled()
+    })
+
+    it('should not check the company rule for an owner without companyId', async () => {
+      mocks.repo.findById.mockResolvedValue(
+        createMockUser({ role: UserRole.OWNER, companyId: null }),
+      )
+
+      await service.deleteOwner('user-1')
+
+      expect(mocks.repo.softDelete).toHaveBeenCalledWith('user-1')
+      expect(mocks.repo.isCompanyActive).not.toHaveBeenCalled()
     })
   })
 

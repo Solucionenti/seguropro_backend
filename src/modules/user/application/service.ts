@@ -110,6 +110,18 @@ export class UserService implements IUserService {
     if (!user || user.role !== UserRole.OWNER) {
       throw new NotFoundError('Owner', id)
     }
+
+    // an active company cannot be left without an active OWNER: nobody could
+    // administer it. deactivating the company first is the way out
+    if (user.companyId && (await this.repo.isCompanyActive(user.companyId))) {
+      const activeOwners = await this.repo.countActiveOwnersByCompany(user.companyId)
+      if (activeOwners <= 1) {
+        throw new ValidationError(
+          'Cannot deactivate the last active OWNER of an active company. Assign a replacement OWNER first',
+        )
+      }
+    }
+
     return this.repo.softDelete(id)
   }
 

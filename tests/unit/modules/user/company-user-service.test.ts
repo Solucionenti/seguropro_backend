@@ -71,6 +71,8 @@ function createMocks() {
     findOwnerWithCompany: mock(() => Promise.resolve(null)),
     findCompleteOwner: mock(() => Promise.resolve(null)),
     countActiveMasterAdmins: mock(() => Promise.resolve(1)),
+    countActiveOwnersByCompany: mock(() => Promise.resolve(1)),
+    isCompanyActive: mock(() => Promise.resolve(true)),
     countActiveCompanyUsers: mock(() => Promise.resolve(0)),
     findCompanyUsers: mock(() => Promise.resolve(Page.empty<User>(defaultPageable))),
     findCompanyUserById: mock(() => Promise.resolve(null)),

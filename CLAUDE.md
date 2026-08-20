@@ -307,6 +307,11 @@ NEVER hand-compute `skip`/`take` or hardcode `orderBy: { createdAt: 'desc' }` �
 - Every operation is scoped through the poliza: `assertPolizaAccessible` resolves the poliza by `companyId` (and by `clienteUserId` when the caller is a CLIENT) and throws `NotFoundError` — never `ForbiddenError` — so a foreign poliza is indistinguishable from a missing one.
 - Routes are nested as `/polizas/:id/archivos/:archivoId`. The poliza segment MUST stay named `:id`: Elysia's router requires the same parameter name at the same position, and `polizaController` already registers `/polizas/:id`.
 
+### Owner Lifecycle (RF-OWNER-05)
+- `UserService.deleteOwner` refuses to deactivate the last active OWNER of an ACTIVE company: an orphaned tenant has nobody who can administer it. It throws `ValidationError` (400) — the owner is left untouched.
+- The check is skipped when the company is already inactive, or when the OWNER has no `companyId`, since there is nothing left to orphan.
+- KNOWN DEAD END: there is no way today to assign a replacement OWNER (`POST /users/owners` always creates a NEW company via `createOwnerWithCompany`) and no endpoint to deactivate a company. So for an active company this DELETE can never succeed. RF-OWNER-02 also caps a company at one OWNER, so the coherent fix is an atomic ownership TRANSFER endpoint, not allowing two owners. Do not "fix" this by relaxing the rule.
+
 ### Mi Empresa (RF-OWNER-09 / RF-OWNER-10)
 - `GET/PUT /companies/mi-empresa` resolve the target company from the JWT `companyId`. The id is NEVER read from the URL or the body, so an OWNER structurally cannot reach another tenant. Do not add an id parameter to these routes.
 - `PUT` is a full replacement: `emailContacto` and `telefonoContacto` are required (they are the non-nullable columns) and every other editable field is set to `NULL` when omitted. If a partial update is ever needed, add a separate `PATCH` — do not soften the `PUT`.

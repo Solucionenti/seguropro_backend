@@ -174,6 +174,26 @@ export class PrismaUserRepository implements UserRepository {
     })
   }
 
+  async countActiveOwnersByCompany(companyId: string): Promise<number> {
+    return this.prisma.user.count({
+      where: {
+        companyId,
+        role: UserRole.OWNER,
+        status: ResourceStatus.ACTIVE,
+        active: true,
+      },
+    })
+  }
+
+  async isCompanyActive(companyId: string): Promise<boolean> {
+    const company = await this.prisma.company.findFirst({
+      where: { id: companyId, status: ResourceStatus.ACTIVE },
+      select: { id: true },
+    })
+
+    return company !== null
+  }
+
   async create(input: CreateUserInput): Promise<User> {
     return this.prisma.user.create({
       data: {
