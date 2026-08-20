@@ -48,7 +48,9 @@ enum OrdenStatus {
 }
 
 enum PolizaStatus {
+  COTIZACION
   VIGENTE
+  PROXIMA_A_VENCER
   VENCIDA
   CANCELADA
   RENOVADA

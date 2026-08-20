@@ -113,7 +113,7 @@ ArchivoPoliza id, polizaId, nombre, mimeType, storageKey, tamanoBytes, active, s
              @@index([polizaId]) · only metadata + storageKey; binaries live in the storage provider
 ```
 
-Enums: `UserRole` (MASTER_ADMIN, OWNER, AGENT, CLIENT) · `ResourceStatus` (ACTIVE, INACTIVE, DELETED) · `TipoPersona` (FISICA, MORAL) · `Periodicidad` (MENSUAL, TRIMESTRAL, SEMESTRAL, ANUAL) · `SuscripcionStatus` (TRIAL, ACTIVA, CANCELADA, VENCIDA, SUSPENDIDA) · `OrdenStatus` (PENDIENTE, PAGADA, FALLIDA, CANCELADA) · `PolizaStatus` (VIGENTE, VENCIDA, CANCELADA, RENOVADA) · `SiniestroStatus` (REPORTADO, EN_REVISION, APROBADO, RECHAZADO, PAGADO, CERRADO)
+Enums: `UserRole` (MASTER_ADMIN, OWNER, AGENT, CLIENT) · `ResourceStatus` (ACTIVE, INACTIVE, DELETED) · `TipoPersona` (FISICA, MORAL) · `Periodicidad` (MENSUAL, TRIMESTRAL, SEMESTRAL, ANUAL) · `SuscripcionStatus` (TRIAL, ACTIVA, CANCELADA, VENCIDA, SUSPENDIDA) · `OrdenStatus` (PENDIENTE, PAGADA, FALLIDA, CANCELADA) · `PolizaStatus` (COTIZACION, VIGENTE, PROXIMA_A_VENCER, VENCIDA, CANCELADA, RENOVADA) · `SiniestroStatus` (REPORTADO, EN_REVISION, APROBADO, RECHAZADO, PAGADO, CERRADO)
 
 ## Environment Variables
 
@@ -309,6 +309,12 @@ NEVER hand-compute `skip`/`take` or hardcode `orderBy: { createdAt: 'desc' }` �
 - Soft-deleting a row leaves the binary in the storage provider on purpose — the record is kept for traceability.
 - Every operation is scoped through the poliza: `assertPolizaAccessible` resolves the poliza by `companyId` (and by `clienteUserId` when the caller is a CLIENT) and throws `NotFoundError` — never `ForbiddenError` — so a foreign poliza is indistinguishable from a missing one.
 - Routes are nested as `/polizas/:id/archivos/:archivoId`. The poliza segment MUST stay named `:id`: Elysia's router requires the same parameter name at the same position, and `polizaController` already registers `/polizas/:id`.
+
+### PolizaStatus
+- `VIGENTE` is this codebase's name for what RF-KANBAN-POL-01 calls `ACTIVA`. They are the same state; it was NOT renamed because the frontend already consumes `VIGENTE` and renaming buys nothing.
+- `PROXIMA_A_VENCER` is fully usable today and is what RF-POL-NOTIF-01 sets from the cron job.
+- `COTIZACION` exists in the enum but a real quote is NOT yet representable: RF-POL-REN-01 requires `numeroPoliza`, `fechaInicio` and `fechaVencimiento` to be NULL on a quote, and all three are still NOT NULL columns. Making them nullable is part of building RF-POL-REN-01 — do it there, together with `polizaAnteriorId`, not as a standalone schema change.
+- There is NO transition validation yet. RF-KANBAN-POL-01 defines the allowed moves (e.g. COTIZACION → VIGENTE requires numeroPoliza + both dates); `PATCH /polizas/:id` currently accepts any value.
 
 ### Owner Lifecycle (RF-OWNER-05)
 - `UserService.deleteOwner` refuses to deactivate the last active OWNER of an ACTIVE company: an orphaned tenant has nobody who can administer it. It throws `ValidationError` (400) — the owner is left untouched.
