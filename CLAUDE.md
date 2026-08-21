@@ -317,6 +317,15 @@ NEVER hand-compute `skip`/`take` or hardcode `orderBy: { createdAt: 'desc' }` �
 - Every operation is scoped through the poliza: `assertPolizaAccessible` resolves the poliza by `companyId` (and by `clienteUserId` when the caller is a CLIENT) and throws `NotFoundError` — never `ForbiddenError` — so a foreign poliza is indistinguishable from a missing one.
 - Routes are nested as `/polizas/:id/archivos/:archivoId`. The poliza segment MUST stay named `:id`: Elysia's router requires the same parameter name at the same position, and `polizaController` already registers `/polizas/:id`.
 
+### Requirements Files
+- `reqs_overview.md` — sections 1-2 of the spec: scope and the **entity catalog** with field-level tables.
+- `reqs_done.md` (81 RF) and `reqs_pending.md` (15 RF) — the requirements themselves, split by implementation status.
+- The entity catalog and the RF sections DISAGREE in places. When they do, treat the entity catalog as the field-level authority and the RF as the flow authority, and flag it here.
+- Known contradictions:
+  - **Hito Siniestro**: the catalog says `tarea`, `fechaLimite` (mandatory), `asignadoAUserId`, plus an `alerta` boolean and `status` enum `(PENDIENTE, EN_PROCESO, COMPLETADO, VENCIDO, CANCELADO)`. RF-HITO-02 instead says `titulo`, `fechaLimite` (optional), `responsableUserId`, and never mentions `alerta`. Resolve this BEFORE building the module.
+  - **Ramo**: the catalog models it as a `Poliza` field, `enum(AUTO, VIDA, HOGAR, NEGOCIO, OTRO)`. There is NO RF for Ramo at all. This codebase implements it as a full entity with its own table and `/ramos` CRUD, and `Poliza.ramoId` as an FK. Do not "align" this without a decision: the module is in use.
+- `RF-POL-01` appears three times verbatim in the source doc and `RF-POL-02` / `RF-POL-03` do not exist. Creating and reading a poliza are implemented but have no written requirement. The duplicates were dropped when splitting.
+
 ### Kanban (RF-KAN-COL-01..05 / RF-KAN-TAR-01..05)
 The board is a free-form set of company-defined columns plus its own task entity. It is NOT the poliza status pipeline: the requirement that made columns the poliza statuses (RF-KANBAN-POL-01) was **removed** in the 2026-02-24 spec and replaced by these two families, which is why `TareaKanban` exists and `Poliza.kanbanId` was dropped. Do not reintroduce a link from the board to `polizaStatus`.
 
