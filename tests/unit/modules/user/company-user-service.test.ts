@@ -4,6 +4,7 @@ import { CompanyUserService } from '@/modules/user/application/company-user-serv
 import type { DetalleCliente, User, UserWithDetalle } from '@/modules/user/domain/entities'
 import type { UserRepository } from '@/modules/user/domain/repository'
 import type { SuscripcionPlanProvider } from '@/modules/user/domain/suscripcion-plan-provider'
+import { ForbiddenError } from '@/shared/domain/forbidden-error'
 import { NotFoundError } from '@/shared/domain/not-found-error'
 import { Page, Pageable } from '@/shared/domain/pagination'
 import type { PasswordHasher } from '@/shared/domain/password-hasher'
@@ -125,9 +126,10 @@ describe('CompanyUserService', () => {
       ])
     })
 
-    it('AGENT receives CLIENT role only', async () => {
+    it('AGENT receives AGENT and CLIENT roles', async () => {
       await service.listCompanyUsers('company-1', UserRole.AGENT, defaultPageable)
       expect(mocks.repo.findCompanyUsers).toHaveBeenCalledWith('company-1', defaultPageable, [
+        UserRole.AGENT,
         UserRole.CLIENT,
       ])
     })
@@ -253,9 +255,18 @@ describe('CompanyUserService', () => {
       expect(result).toBe(agent)
     })
 
-    it('AGENT cannot get another AGENT user', async () => {
+    it('AGENT can get another AGENT user', async () => {
+      const agent = createMockUserWithDetalle({ role: UserRole.AGENT })
+      mocks.repo.findCompanyUserById.mockResolvedValue(agent)
+
+      const result = await service.getCompanyUser('company-1', 'user-1', UserRole.AGENT)
+
+      expect(result).toBe(agent)
+    })
+
+    it('AGENT cannot get the OWNER', async () => {
       mocks.repo.findCompanyUserById.mockResolvedValue(
-        createMockUserWithDetalle({ role: UserRole.AGENT }),
+        createMockUserWithDetalle({ role: UserRole.OWNER }),
       )
 
       await expect(
@@ -308,14 +319,36 @@ describe('CompanyUserService', () => {
       )
     })
 
-    it('AGENT cannot update another AGENT', async () => {
+    it('AGENT updates a CLIENT user', async () => {
+      mocks.repo.findCompanyUserById.mockResolvedValue(
+        createMockUserWithDetalle({ role: UserRole.CLIENT }),
+      )
+
+      await service.updateCompanyUser('company-1', 'user-1', UserRole.AGENT, { firstName: 'X' })
+
+      expect(mocks.repo.updateCompanyUserWithDetalle).toHaveBeenCalled()
+    })
+
+    it('AGENT cannot update another AGENT (403, not 404)', async () => {
       mocks.repo.findCompanyUserById.mockResolvedValue(
         createMockUserWithDetalle({ role: UserRole.AGENT }),
       )
 
       await expect(
         service.updateCompanyUser('company-1', 'user-1', UserRole.AGENT, { firstName: 'X' }),
-      ).rejects.toBeInstanceOf(NotFoundError)
+      ).rejects.toBeInstanceOf(ForbiddenError)
+      expect(mocks.repo.updateCompanyUserWithDetalle).not.toHaveBeenCalled()
+    })
+
+    it('AGENT cannot update the OWNER (403, not 404)', async () => {
+      mocks.repo.findCompanyUserById.mockResolvedValue(
+        createMockUserWithDetalle({ role: UserRole.OWNER }),
+      )
+
+      await expect(
+        service.updateCompanyUser('company-1', 'user-1', UserRole.AGENT, { firstName: 'X' }),
+      ).rejects.toBeInstanceOf(ForbiddenError)
+      expect(mocks.repo.updateCompanyUserWithDetalle).not.toHaveBeenCalled()
     })
   })
 
@@ -332,14 +365,36 @@ describe('CompanyUserService', () => {
       expect(mocks.repo.deactivateUser).toHaveBeenCalledWith('user-1')
     })
 
-    it('AGENT cannot deactivate another AGENT', async () => {
+    it('AGENT deactivates a CLIENT user', async () => {
+      mocks.repo.findCompanyUserById.mockResolvedValue(
+        createMockUserWithDetalle({ role: UserRole.CLIENT }),
+      )
+
+      await service.deactivateCompanyUser('company-1', 'user-1', UserRole.AGENT)
+
+      expect(mocks.repo.deactivateUser).toHaveBeenCalledWith('user-1')
+    })
+
+    it('AGENT cannot deactivate another AGENT (403, not 404)', async () => {
       mocks.repo.findCompanyUserById.mockResolvedValue(
         createMockUserWithDetalle({ role: UserRole.AGENT }),
       )
 
       await expect(
         service.deactivateCompanyUser('company-1', 'user-1', UserRole.AGENT),
-      ).rejects.toBeInstanceOf(NotFoundError)
+      ).rejects.toBeInstanceOf(ForbiddenError)
+      expect(mocks.repo.deactivateUser).not.toHaveBeenCalled()
+    })
+
+    it('AGENT cannot deactivate the OWNER (403, not 404)', async () => {
+      mocks.repo.findCompanyUserById.mockResolvedValue(
+        createMockUserWithDetalle({ role: UserRole.OWNER }),
+      )
+
+      await expect(
+        service.deactivateCompanyUser('company-1', 'user-1', UserRole.AGENT),
+      ).rejects.toBeInstanceOf(ForbiddenError)
+      expect(mocks.repo.deactivateUser).not.toHaveBeenCalled()
     })
   })
 })

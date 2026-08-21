@@ -64,14 +64,15 @@ prisma/schema.prisma                 # Single source of truth for models and enu
 | | `GET/PATCH /api/v1/users/me` | Any authenticated user |
 | | `GET /api/v1/users/mis-usuarios`, `GET/PATCH/DELETE /api/v1/users/mis-usuarios/:id` | `OWNER`, `AGENT` |
 | | `POST /api/v1/users/mis-usuarios/clientes` | `OWNER`, `AGENT` |
-| | `GET /api/v1/users/mis-usuarios/agentes`, `GET /api/v1/users/mis-usuarios/clientes` | `OWNER` |
+| | `GET /api/v1/users/mis-usuarios/agentes`, `GET /api/v1/users/mis-usuarios/clientes` | `OWNER`, `AGENT` |
 | | `POST /api/v1/users/mis-usuarios/agentes` | `OWNER` |
 | `company` | `GET /api/v1/companies`, `GET /api/v1/companies/:id` | `MASTER_ADMIN` |
 | | `GET /api/v1/companies/mi-empresa`, `PUT /api/v1/companies/mi-empresa` | `OWNER` |
 | `plan` | `POST /api/v1/plans`, `PATCH /api/v1/plans/:id`, `DELETE /api/v1/plans/deactivate/:id` | `MASTER_ADMIN` |
 | | `GET /api/v1/plans`, `GET /api/v1/plans/:id` | `MASTER_ADMIN`, `OWNER` |
 | `suscripcion` | `GET/POST /api/v1/suscripciones`, `GET/PATCH/DELETE /api/v1/suscripciones/:id` | `MASTER_ADMIN` |
-| | `GET/POST/DELETE /api/v1/suscripciones/mi-suscripcion`, `POST /api/v1/suscripciones/mi-suscripcion-con-orden` | `OWNER` |
+| | `GET /api/v1/suscripciones/mi-suscripcion` | `OWNER`, `AGENT` |
+| | `POST/DELETE /api/v1/suscripciones/mi-suscripcion`, `POST /api/v1/suscripciones/mi-suscripcion-con-orden` | `OWNER` |
 | `orden` | `GET/POST /api/v1/ordenes`, `GET/PATCH/DELETE /api/v1/ordenes/:id` | `MASTER_ADMIN` |
 | | `GET/POST /api/v1/ordenes/mis-ordenes`, `GET /api/v1/ordenes/mis-ordenes/:id` | `OWNER` |
 | | `PATCH /api/v1/ordenes/mis-ordenes/:id/pagar`, `PATCH /api/v1/ordenes/mis-ordenes/:id/pagar-primera` | `OWNER` |
@@ -332,6 +333,16 @@ NEVER hand-compute `skip`/`take` or hardcode `orderBy: { createdAt: 'desc' }` �
 - `PUT` is a full replacement: `emailContacto` and `telefonoContacto` are required (they are the non-nullable columns) and every other editable field is set to `NULL` when omitted. If a partial update is ever needed, add a separate `PATCH` — do not soften the `PUT`.
 - `id`, `status` and the subscription are NOT editable from this flow.
 - An INACTIVE company is unreadable, therefore uneditable: the repository filters `status: ACTIVE`, so it surfaces as `NotFoundError`.
+
+### AGENT Permissions (RF-AGENT)
+- An AGENT is a company operator: it reads almost everything in its own company but only ever **writes** to `CLIENT` users.
+- `CompanyUserService` splits the role scopes: `getReadableRoles` (AGENT → AGENT + CLIENT) and `getWritableRoles` (AGENT → CLIENT only). OWNER manages both roles in both scopes.
+- Write routes (`PATCH`/`DELETE /users/mis-usuarios/:id`) MUST go through `findWritableCompanyUser`, which checks the **target role alone**. An AGENT aiming at an AGENT or at the OWNER gets `ForbiddenError` (403) — deliberately NOT 404, so the frontend can tell "not allowed" from "does not exist". Never route these through `getCompanyUser`: that applies the read scope and would answer 404 for a peer AGENT.
+- The OWNER is invisible to `GET /users/mis-usuarios/:id` for an AGENT (404) because it is outside the read scope. Only the write path reports 403 for an OWNER target.
+- `POST /users/mis-usuarios/agentes` stays `OWNER`-only (403 for AGENT). Creating agents is never delegated.
+- `GET /suscripciones/mi-suscripcion` is readable by AGENT: it is scoped by the JWT `companyId` and subscription-gated routes need it. The write routes on that path stay OWNER-only.
+- `GET /users/mis-usuarios` returns AGENT + CLIENT for an AGENT (read scope). Use `GET /users/mis-usuarios/clientes` when only clients are wanted — do NOT treat the generic list as a client list.
+- Covered by `tests/unit/modules/user/company-user-service.test.ts`.
 
 ### Multi-Tenant Model
 - All data queries in tenant-scoped modules MUST be filtered by `companyId`.

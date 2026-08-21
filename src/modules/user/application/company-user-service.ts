@@ -1,4 +1,5 @@
 import { SuscripcionStatus, UserRole } from '@gen/enums'
+import { ForbiddenError } from '@/shared/domain/forbidden-error'
 import { NotFoundError } from '@/shared/domain/not-found-error'
 import type { Page, Pageable } from '@/shared/domain/pagination'
 import type { PasswordHasher } from '@/shared/domain/password-hasher'
@@ -19,7 +20,9 @@ const ACTIVE_SUBSCRIPTION_STATUSES: SuscripcionStatus[] = [
 ]
 
 const ROLES_MANAGED_BY_OWNER: UserRole[] = [UserRole.AGENT, UserRole.CLIENT]
-const ROLES_MANAGED_BY_AGENT: UserRole[] = [UserRole.CLIENT]
+// an agent sees its peers but only ever writes to clients
+const ROLES_READABLE_BY_AGENT: UserRole[] = [UserRole.AGENT, UserRole.CLIENT]
+const ROLES_WRITABLE_BY_AGENT: UserRole[] = [UserRole.CLIENT]
 
 export class CompanyUserService implements ICompanyUserService {
   constructor(
@@ -42,8 +45,29 @@ export class CompanyUserService implements ICompanyUserService {
     }
   }
 
-  private getAllowedRoles(requestorRole: UserRole): UserRole[] {
-    return requestorRole === UserRole.OWNER ? ROLES_MANAGED_BY_OWNER : ROLES_MANAGED_BY_AGENT
+  private getReadableRoles(requestorRole: UserRole): UserRole[] {
+    return requestorRole === UserRole.OWNER ? ROLES_MANAGED_BY_OWNER : ROLES_READABLE_BY_AGENT
+  }
+
+  private getWritableRoles(requestorRole: UserRole): UserRole[] {
+    return requestorRole === UserRole.OWNER ? ROLES_MANAGED_BY_OWNER : ROLES_WRITABLE_BY_AGENT
+  }
+
+  // write access is checked against the target role alone, never against what the
+  // requestor may read, so an agent aiming at an agent or at the owner gets 403 not 404
+  private async findWritableCompanyUser(
+    companyId: string,
+    id: string,
+    requestorRole: UserRole,
+  ): Promise<UserWithDetalle> {
+    const user = await this.repo.findCompanyUserById(companyId, id)
+    if (!user) throw new NotFoundError('User', id)
+
+    if (!this.getWritableRoles(requestorRole).includes(user.role)) {
+      throw new ForbiddenError(`Your role cannot modify ${user.role} users`)
+    }
+
+    return user
   }
 
   async listCompanyUsers(
@@ -51,7 +75,7 @@ export class CompanyUserService implements ICompanyUserService {
     requestorRole: UserRole,
     pageable: Pageable,
   ): Promise<Page<User>> {
-    const roles = this.getAllowedRoles(requestorRole)
+    const roles = this.getReadableRoles(requestorRole)
     return this.repo.findCompanyUsers(companyId, pageable, roles)
   }
 
@@ -114,7 +138,7 @@ export class CompanyUserService implements ICompanyUserService {
     const user = await this.repo.findCompanyUserById(companyId, id)
     if (!user) throw new NotFoundError('User', id)
 
-    const allowedRoles = this.getAllowedRoles(requestorRole)
+    const allowedRoles = this.getReadableRoles(requestorRole)
     if (!allowedRoles.includes(user.role)) throw new NotFoundError('User', id)
 
     return user
@@ -126,7 +150,7 @@ export class CompanyUserService implements ICompanyUserService {
     requestorRole: UserRole,
     input: UpdateCompanyUserInput,
   ): Promise<UserWithDetalle> {
-    const user = await this.getCompanyUser(companyId, id, requestorRole)
+    const user = await this.findWritableCompanyUser(companyId, id, requestorRole)
     const { detalle, ...userInput } = input
     const detalleToUpdate = user.role === UserRole.CLIENT ? detalle : undefined
     return this.repo.updateCompanyUserWithDetalle(id, userInput, detalleToUpdate)
@@ -137,7 +161,7 @@ export class CompanyUserService implements ICompanyUserService {
     id: string,
     requestorRole: UserRole,
   ): Promise<void> {
-    await this.getCompanyUser(companyId, id, requestorRole)
+    await this.findWritableCompanyUser(companyId, id, requestorRole)
     return this.repo.deactivateUser(id)
   }
 }
