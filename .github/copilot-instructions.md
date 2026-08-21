@@ -160,6 +160,10 @@
 - Soft-delete keeps the binary in the storage provider on purpose, for traceability.
 - Both nest as `/<owner>/:id/archivos/:archivoId` — keep the owner segment named `:id`.
 
+### Kanban (RF-KAN-COL / RF-KAN-TAR)
+- The board is free-form company-defined columns plus its own task entity, NOT the poliza status pipeline. RF-KANBAN-POL-01 (columns = poliza statuses) was REMOVED in the 2026-02-24 spec and replaced by RF-KAN-COL-01..05 and RF-KAN-TAR-01..05. Never relink the board to `polizaStatus`.
+- The implementation predates that spec and diverges in five open points: no `active` column on either entity, `hardDelete` where the spec forbids physical deletion, `onDelete: SetNull` where tasks should stay associated, nullable `columnaKanbanId` where it is mandatory, and priority uniqueness across all rows instead of only active ones. See CLAUDE.md `### Kanban`. These are decisions, not bugs to fix silently.
+
 ### Mi Empresa (RF-OWNER-09 / RF-OWNER-10)
 - `GET/PUT /companies/mi-empresa` take the company from the JWT `companyId`, never from the URL or body — an OWNER structurally cannot reach another tenant. Never add an id param to these routes.
 - `PUT` is a full replacement: `emailContacto` and `telefonoContacto` required, every other editable field nulled when omitted. Need a partial update? Add a separate `PATCH`, do not soften the `PUT`.

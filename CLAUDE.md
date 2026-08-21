@@ -268,7 +268,7 @@ NEVER hand-compute `skip`/`take` or hardcode `orderBy: { createdAt: 'desc' }` �
 - By default, never perform real DELETE. ALL deletions MUST set `status = 'DELETED'`.
 - Repository delete methods MUST be named `softDelete`.
 - ALL read queries MUST filter by `status: ResourceStatus.ACTIVE` by default.
-- Explicit exception: `ColumnaKanban` and `TareaKanban` use `hardDelete` repository/service methods and physical DELETE endpoints as requested. Deleting a column sets task `columnaKanbanId` to NULL, and deleting a policy sets task `polizaId` to NULL.
+- Current exception: `ColumnaKanban` and `TareaKanban` use `hardDelete` and physical DELETE endpoints. Deleting a column sets task `columnaKanbanId` to NULL, and deleting a policy sets task `polizaId` to NULL. **This now contradicts the spec** — see `### Kanban` before touching it.
 - Use `findFirst` with `status: 'ACTIVE'` instead of `findUnique` where applicable.
 
 ### Auth
@@ -317,11 +317,23 @@ NEVER hand-compute `skip`/`take` or hardcode `orderBy: { createdAt: 'desc' }` �
 - Every operation is scoped through the poliza: `assertPolizaAccessible` resolves the poliza by `companyId` (and by `clienteUserId` when the caller is a CLIENT) and throws `NotFoundError` — never `ForbiddenError` — so a foreign poliza is indistinguishable from a missing one.
 - Routes are nested as `/polizas/:id/archivos/:archivoId`. The poliza segment MUST stay named `:id`: Elysia's router requires the same parameter name at the same position, and `polizaController` already registers `/polizas/:id`.
 
+### Kanban (RF-KAN-COL-01..05 / RF-KAN-TAR-01..05)
+The board is a free-form set of company-defined columns plus its own task entity. It is NOT the poliza status pipeline: the requirement that made columns the poliza statuses (RF-KANBAN-POL-01) was **removed** in the 2026-02-24 spec and replaced by these two families, which is why `TareaKanban` exists and `Poliza.kanbanId` was dropped. Do not reintroduce a link from the board to `polizaStatus`.
+
+The implementation predates the new spec and diverges from it in five places. All five are open decisions, NOT bugs to fix silently:
+1. Neither `ColumnaKanban` nor `TareaKanban` has an `active` column, but every RF-KAN rule is written against `active`. Today only `status` exists.
+2. RF-KAN-COL-05 and RF-KAN-TAR-05 say "no se permite eliminación física"; both modules use `hardDelete` and physical DELETE endpoints.
+3. RF-KAN-COL-05 says tasks of a deleted column "permanecen asociadas para conservar trazabilidad"; the FK is `onDelete: SetNull`, so the association is lost.
+4. RF-KAN-TAR-02 says `columnaKanbanId` is mandatory; the column is nullable (`String?`).
+5. RF-KAN-COL-02/04 require the priority to be unique **among active columns**; `@@unique([companyId, prioridad])` enforces it across all rows, so a soft-deleted column would keep its slot reserved.
+
+Filters by `columnaKanbanId` and `polizaId` (RF-KAN-TAR-01) ARE implemented.
+
 ### PolizaStatus
-- `VIGENTE` is this codebase's name for what RF-KANBAN-POL-01 calls `ACTIVA`. They are the same state; it was NOT renamed because the frontend already consumes `VIGENTE` and renaming buys nothing.
+- `VIGENTE` is this codebase's name for the "active policy" state. The old RF-KANBAN-POL-01 called it `ACTIVA`, but that requirement no longer exists (see `### Kanban`), so nothing forces a rename and the frontend already consumes `VIGENTE`.
 - `PROXIMA_A_VENCER` is fully usable today and is what RF-POL-NOTIF-01 sets from the cron job.
 - `COTIZACION` exists in the enum but a real quote is NOT yet representable: RF-POL-REN-01 requires `numeroPoliza`, `fechaInicio` and `fechaVencimiento` to be NULL on a quote, and all three are still NOT NULL columns. Making them nullable is part of building RF-POL-REN-01 — do it there, together with `polizaAnteriorId`, not as a standalone schema change.
-- There is NO transition validation yet. RF-KANBAN-POL-01 defines the allowed moves (e.g. COTIZACION → VIGENTE requires numeroPoliza + both dates); `PATCH /polizas/:id` currently accepts any value.
+- There is NO status transition validation. No current requirement defines one either: the spec that did (RF-KANBAN-POL-01) was replaced by RF-KAN-COL / RF-KAN-TAR, which decoupled the board from `polizaStatus`. `PATCH /polizas/:id` accepts any value on purpose.
 
 ### Owner Lifecycle (RF-OWNER-05)
 - `UserService.deleteOwner` refuses to deactivate the last active OWNER of an ACTIVE company: an orphaned tenant has nobody who can administer it. It throws `ValidationError` (400) — the owner is left untouched.

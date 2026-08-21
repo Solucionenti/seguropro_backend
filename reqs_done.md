@@ -1,3 +1,10 @@
+> **SUPERADO por `2026-02-24-CRM-SEGUROPRO.md`.**
+> Ese archivo es la fuente de verdad de requerimientos.
+> Se conserva este solo por el corte histórico de implementado vs pendiente, que el
+> documento nuevo no distingue. Los 86 RF que comparten ambos son idénticos palabra
+> por palabra; el nuevo agrega RF-KAN-COL-01..05 y RF-KAN-TAR-01..05, y elimina
+> RF-KANBAN-POL-01. No editar este archivo: editar el nuevo.
+
 ## 3 Requerimientos
 
 #### RF-AUTH-01 Iniciar sesión como MASTER_ADMIN
