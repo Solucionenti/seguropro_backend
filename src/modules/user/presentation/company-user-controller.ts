@@ -52,11 +52,11 @@ export const companyUserController = new Elysia({
           query: pageableSchema,
           paginated: { sortFields: USER_SORT_FIELDS },
           requireCompany: true,
-          withRole: [UserRole.OWNER],
+          withRole: [UserRole.OWNER, UserRole.AGENT],
           detail: {
             tags: ['Company Users'],
             summary: 'List company clients',
-            description: 'Returns only CLIENT users.',
+            description: 'Returns only CLIENT users. Both OWNER and AGENT may read it.',
           },
         },
       )
@@ -70,11 +70,12 @@ export const companyUserController = new Elysia({
           query: pageableSchema,
           paginated: { sortFields: USER_SORT_FIELDS },
           requireCompany: true,
-          withRole: [UserRole.OWNER],
+          withRole: [UserRole.OWNER, UserRole.AGENT],
           detail: {
             tags: ['Company Users'],
             summary: 'List company agents',
-            description: 'Returns only AGENT users.',
+            description:
+              'Returns only AGENT users. AGENT may read this list but cannot create, update or deactivate agents.',
           },
         },
       )
@@ -132,7 +133,7 @@ export const companyUserController = new Elysia({
             tags: ['Company Users'],
             summary: 'Get company user detail',
             description:
-              'Returns user detail including DetalleCliente for CLIENT users. AGENT cannot view AGENT users.',
+              'Returns user detail including DetalleCliente for CLIENT users. AGENT may read AGENT and CLIENT users; the OWNER is not reachable (404).',
           },
         },
       )
@@ -156,7 +157,7 @@ export const companyUserController = new Elysia({
             tags: ['Company Users'],
             summary: 'Update company user',
             description:
-              'Updates user fields. For CLIENT users, optionally updates DetalleCliente. Role and companyId cannot be changed.',
+              'Updates user fields. For CLIENT users, optionally updates DetalleCliente. Role and companyId cannot be changed. AGENT may only update CLIENT users (403 otherwise).',
           },
         },
       )
@@ -173,7 +174,8 @@ export const companyUserController = new Elysia({
           detail: {
             tags: ['Company Users'],
             summary: 'Deactivate company user',
-            description: 'Sets active=false on the user. AGENT cannot deactivate AGENT users.',
+            description:
+              'Sets active=false on the user. AGENT may only deactivate CLIENT users (403 otherwise).',
           },
         },
       ),

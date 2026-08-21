@@ -71,11 +71,12 @@ export const suscripcionController = new Elysia({
     },
     {
       requireCompany: true,
-      withRole: UserRole.OWNER,
+      withRole: [UserRole.OWNER, UserRole.AGENT],
       detail: {
         tags: ['Suscripciones'],
         summary: 'Get my active subscription',
-        description: "Returns the active subscription for the authenticated owner's company.",
+        description:
+          "Returns the active subscription for the caller's company. Read-only for AGENT, which needs it to resolve subscription-gated routes.",
       },
     },
   )

@@ -162,6 +162,15 @@
 - `PUT` is a full replacement: `emailContacto` and `telefonoContacto` required, every other editable field nulled when omitted. Need a partial update? Add a separate `PATCH`, do not soften the `PUT`.
 - `id`, `status` and the subscription are not editable here. An INACTIVE company is unreadable and therefore uneditable (`NotFoundError`).
 
+### AGENT Permissions (CRITICAL)
+- An AGENT is a company operator: broad **read** access inside its own company, but it may only **write** to `CLIENT` users.
+- `CompanyUserService` keeps two separate role scopes — `getReadableRoles` (AGENT → AGENT + CLIENT) and `getWritableRoles` (AGENT → CLIENT only). OWNER manages AGENT + CLIENT in both scopes.
+- `PATCH` / `DELETE /users/mis-usuarios/:id` MUST resolve the target through `findWritableCompanyUser`, which validates the **target role by itself**. An AGENT targeting an AGENT or the OWNER gets `ForbiddenError` (403), deliberately not 404, so the frontend can distinguish "not allowed" from "does not exist". NEVER reuse `getCompanyUser` for a write path — it applies the read scope and would return 404 for a peer AGENT.
+- `POST /users/mis-usuarios/agentes` is OWNER-only (403 for AGENT). Do not delegate agent creation.
+- `GET /suscripciones/mi-suscripcion` accepts AGENT (scoped by the JWT `companyId`); the POST/DELETE routes on that path stay OWNER-only.
+- `GET /users/mis-usuarios` returns AGENT + CLIENT for an AGENT. It is NOT a client list — use `GET /users/mis-usuarios/clientes` for that.
+- Guarded by `tests/unit/modules/user/company-user-service.test.ts`.
+
 ### Multi-Tenant Model
 - Each **Company (Empresa)** is an isolated tenant. All data queries must be scoped by `companyId`.
 - Users are unique per company: `@@unique([companyId, email])`. The same email can exist in multiple companies.
