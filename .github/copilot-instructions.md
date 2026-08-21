@@ -160,6 +160,13 @@
 - Soft-delete keeps the binary in the storage provider on purpose, for traceability.
 - Both nest as `/<owner>/:id/archivos/:archivoId` — keep the owner segment named `:id`.
 
+### Scheduled Jobs (RF-POL-NOTIF-01)
+- Jobs are HTTP endpoints under `/api/v1/jobs`, called by an EXTERNAL scheduler (Lambda, Worker Cron, cron-job.org). NO in-process scheduler on purpose: with two API instances an in-process cron mails every client twice.
+- Auth is the `x-job-secret` header compared in constant time against `JOB_SECRET` (min 32 chars, enforced in `env.ts`). No JWT. Never log it, never widen the route.
+- Thresholds are per company (`Company.avisoVencimientoDias`, default `[30,15,7]`). Postgres cannot MAX an `int[]`, so read the days, widen the SQL window to the largest, and match in memory. A notice fires only when `diasRestantes` equals a configured day exactly.
+- Idempotency: `NotificacionEnviada` unique on `(tipo, entidadId, marca)` written with `createMany({ skipDuplicates: true })`. The row is reserved BEFORE sending, so a failed send is not retried — losing one mail beats double-mailing a client.
+- One bad address must never abort the run: wrap each send and count it in `fallidas`. `marca` is a string so the same table serves RF-HITO-EMAIL-01 with no migration.
+
 ### Kanban (RF-KAN-COL / RF-KAN-TAR)
 - The board is free-form company-defined columns plus its own task entity, NOT the poliza status pipeline. RF-KANBAN-POL-01 (columns = poliza statuses) was REMOVED in the 2026-02-24 spec and replaced by RF-KAN-COL-01..05 and RF-KAN-TAR-01..05. Never relink the board to `polizaStatus`.
 - The implementation predates that spec and diverges in five open points: no `active` column on either entity, `hardDelete` where the spec forbids physical deletion, `onDelete: SetNull` where tasks should stay associated, nullable `columnaKanbanId` where it is mandatory, and priority uniqueness across all rows instead of only active ones. See CLAUDE.md `### Kanban`. These are decisions, not bugs to fix silently.

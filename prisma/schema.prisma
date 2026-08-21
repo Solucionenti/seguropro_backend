@@ -67,6 +67,9 @@ model Company {
   pais             String?
   estado           String?
 
+  /// dias de anticipacion para avisar de polizas por vencer (RF-POL-NOTIF-01)
+  avisoVencimientoDias Int[] @default([30, 15, 7])
+
   status    ResourceStatus @default(ACTIVE)
   createdAt DateTime       @default(now())
   updatedAt DateTime       @updatedAt
@@ -378,4 +381,28 @@ model ArchivoSiniestro {
 
   @@index([siniestroId])
   @@map("archivos_siniestros")
+}
+
+enum NotificacionTipo {
+  POLIZA_POR_VENCER
+  HITO_ALERTA
+}
+
+/// bitacora y anti-duplicado de envios automaticos. `marca` distingue el umbral
+/// concreto ("30", "15", "7" para polizas; "PROXIMO"/"HOY"/"VENCIDO" para hitos)
+/// para que un reintento del scheduler no reenvie el mismo aviso
+model NotificacionEnviada {
+  id        String           @id @default(uuid())
+  tipo      NotificacionTipo
+  entidadId String
+  marca     String
+  enviadoEn DateTime         @default(now())
+
+  status    ResourceStatus @default(ACTIVE)
+  createdAt DateTime       @default(now())
+  updatedAt DateTime       @updatedAt
+
+  @@unique([tipo, entidadId, marca], name: "notificacion_unica_por_umbral")
+  @@index([tipo, enviadoEn])
+  @@map("notificaciones_enviadas")
 }

@@ -1,7 +1,12 @@
 import { render } from '@react-email/render'
 import { AppError } from '@/shared/domain/app-error'
-import type { EmailSender, PasswordResetEmailInput } from '@/shared/domain/email-sender'
+import type {
+  EmailSender,
+  PasswordResetEmailInput,
+  PolizaPorVencerEmailInput,
+} from '@/shared/domain/email-sender'
 import { PasswordResetEmail } from './emails/password-reset-email'
+import { PolizaPorVencerEmail } from './emails/poliza-por-vencer-email'
 
 interface ResendConfig {
   apiKey: string
@@ -14,6 +19,11 @@ export class ResendEmailSender implements EmailSender {
   async sendPasswordReset({ to, ...props }: PasswordResetEmailInput): Promise<void> {
     const html = await render(PasswordResetEmail(props))
     await this.send(to, 'Restablece tu contraseña', html)
+  }
+
+  async sendPolizaPorVencer({ to, ...props }: PolizaPorVencerEmailInput): Promise<void> {
+    const html = await render(PolizaPorVencerEmail(props))
+    await this.send(to, `La poliza ${props.numeroPoliza} esta por vencer`, html)
   }
 
   // sent synchronously inside the request, move to a queue if latency becomes a problem

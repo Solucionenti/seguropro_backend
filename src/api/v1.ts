@@ -7,6 +7,7 @@ import { authController } from '@/modules/auth/presentation/controller'
 import { columnaKanbanController } from '@/modules/columna-kanban/presentation/controller'
 import { companyController } from '@/modules/company/presentation/controller'
 import { healthController } from '@/modules/health/presentation/controller'
+import { jobController } from '@/modules/notificacion/presentation/controller'
 import { ordenController } from '@/modules/orden/presentation/controller'
 import { planController } from '@/modules/plan/presentation/controller'
 import { polizaController } from '@/modules/poliza/presentation/controller'
@@ -35,3 +36,4 @@ export const v1 = new Elysia({ name: '@app/api/v1', prefix: '/api/v1' })
   .use(archivoPolizaController)
   .use(archivoSiniestroController)
   .use(fileController)
+  .use(jobController)

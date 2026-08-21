@@ -17,6 +17,9 @@ import { CompanyService } from '@/modules/company/application/service'
 import { PrismaCompanyRepository } from '@/modules/company/infrastructure/prisma-repo'
 import { HealthService } from '@/modules/health/application/service'
 import { PrismaHealthRepository } from '@/modules/health/infrastructure/prisma-repo'
+import { NotificacionService } from '@/modules/notificacion/application/service'
+import { PrismaPolizaVencimientoProvider } from '@/modules/notificacion/infrastructure/prisma-poliza-vencimiento-provider'
+import { PrismaNotificacionRepository } from '@/modules/notificacion/infrastructure/prisma-repo'
 import { OrdenService } from '@/modules/orden/application/service'
 import { PrismaOrdenRepository } from '@/modules/orden/infrastructure/prisma-repo'
 import { PrismaSuscripcionProvider } from '@/modules/orden/infrastructure/prisma-suscripcion-provider'
@@ -79,6 +82,8 @@ const siniestroPolizaProvider = new PrismaPolizaProvider(prisma)
 const archivoPolizaRepo = new PrismaArchivoPolizaRepository(prisma)
 const archivoPolizaProvider = new PrismaArchivoPolizaProvider(prisma)
 const storageQuota = new PrismaStorageQuota(prisma)
+const notificacionRepo = new PrismaNotificacionRepository(prisma)
+const polizaVencimientoProvider = new PrismaPolizaVencimientoProvider(prisma)
 const archivoSiniestroRepo = new PrismaArchivoSiniestroRepository(prisma)
 const archivoSiniestroProvider = new PrismaArchivoSiniestroProvider(prisma)
 // local keeps binaries on disk and signs urls this api serves; s3 works against any
@@ -138,6 +143,12 @@ const polizaService = new PolizaService(
   polizaClienteProvider,
 )
 const companyService = new CompanyService(companyRepo)
+const notificacionService = new NotificacionService(
+  polizaVencimientoProvider,
+  notificacionRepo,
+  emailSender,
+  { appUrl: envConfig.APP_URL },
+)
 const siniestroService = new SiniestroService(siniestroRepo, siniestroPolizaProvider)
 const archivoSiniestroService = new ArchivoSiniestroService(
   archivoSiniestroRepo,
@@ -240,3 +251,7 @@ export const localFileStoragePlugin = new Elysia({
 export const archivoSiniestroServicePlugin = new Elysia({
   name: '@app/services/archivo-siniestro',
 }).decorate('archivoSiniestroService', archivoSiniestroService)
+
+export const notificacionServicePlugin = new Elysia({
+  name: '@app/services/notificacion',
+}).decorate('notificacionService', notificacionService)

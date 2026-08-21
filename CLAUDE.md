@@ -11,6 +11,7 @@
 - **Database**: PostgreSQL + Prisma ORM `7.4.1` (Rust-free engine, `prisma-client` generator, `@prisma/adapter-pg`)
 - **JWT**: `jose 6.2.0` (direct dependency). Do NOT use `@elysiajs/jwt`.
 - **Email**: Resend HTTP API called with plain `fetch`. Do NOT install the `resend` SDK.
+- **Scheduling**: none in-process. Jobs are HTTP endpoints called by an external scheduler — see `### Scheduled Jobs`.
 - **Email templates**: React Email (`@react-email/components 1.0.12` + `@react-email/render 2.1.0`, `react 19.2.8`). `.tsx` files under `src/shared/infrastructure/emails/`.
 - **Testing**: `bun test` (Bun's native test runner)
 - **Linting/Formatting**: Biome `2.4.4`
@@ -90,6 +91,7 @@ prisma/schema.prisma                 # Single source of truth for models and enu
 | `archivo-siniestro` | `GET /api/v1/siniestros/:id/archivos`, `GET /api/v1/siniestros/:id/archivos/:archivoId` | `OWNER`, `AGENT`, `CLIENT` (own siniestros) |
 | | `POST /api/v1/siniestros/:id/archivos` (multipart), `PATCH/DELETE /api/v1/siniestros/:id/archivos/:archivoId` | `OWNER`, `AGENT` |
 | | `GET /api/v1/files/:storageKey?expires=&signature=` | Public (signed url) |
+| `notificacion` | `POST /api/v1/jobs/notificar-polizas-por-vencer` | Public (`x-job-secret` header) |
 
 ## Current Prisma Models
 
@@ -116,9 +118,11 @@ ArchivoPoliza id, polizaId, nombre, mimeType, storageKey, tamanoBytes, active, s
              @@index([polizaId]) · only metadata + storageKey; binaries live in the storage provider
 ArchivoSiniestro id, siniestroId, nombre, mimeType, storageKey, tamanoBytes, active, status, createdAt, updatedAt
              @@index([siniestroId]) · same shape as ArchivoPoliza
+NotificacionEnviada id, tipo, entidadId, marca, enviadoEn, status, createdAt, updatedAt
+             @@unique([tipo, entidadId, marca]) · anti-duplicate log for scheduled jobs
 ```
 
-Enums: `UserRole` (MASTER_ADMIN, OWNER, AGENT, CLIENT) · `ResourceStatus` (ACTIVE, INACTIVE, DELETED) · `TipoPersona` (FISICA, MORAL) · `Periodicidad` (MENSUAL, TRIMESTRAL, SEMESTRAL, ANUAL) · `SuscripcionStatus` (TRIAL, ACTIVA, CANCELADA, VENCIDA, SUSPENDIDA) · `OrdenStatus` (PENDIENTE, PAGADA, FALLIDA, CANCELADA) · `PolizaStatus` (COTIZACION, VIGENTE, PROXIMA_A_VENCER, VENCIDA, CANCELADA, RENOVADA) · `SiniestroStatus` (REPORTADO, EN_REVISION, APROBADO, RECHAZADO, PAGADO, CERRADO)
+Enums: `UserRole` (MASTER_ADMIN, OWNER, AGENT, CLIENT) · `ResourceStatus` (ACTIVE, INACTIVE, DELETED) · `TipoPersona` (FISICA, MORAL) · `Periodicidad` (MENSUAL, TRIMESTRAL, SEMESTRAL, ANUAL) · `SuscripcionStatus` (TRIAL, ACTIVA, CANCELADA, VENCIDA, SUSPENDIDA) · `OrdenStatus` (PENDIENTE, PAGADA, FALLIDA, CANCELADA) · `PolizaStatus` (COTIZACION, VIGENTE, PROXIMA_A_VENCER, VENCIDA, CANCELADA, RENOVADA) · `SiniestroStatus` (REPORTADO, EN_REVISION, APROBADO, RECHAZADO, PAGADO, CERRADO) · `NotificacionTipo` (POLIZA_POR_VENCER, HITO_ALERTA)
 
 ## Environment Variables
 
@@ -141,6 +145,7 @@ Enums: `UserRole` (MASTER_ADMIN, OWNER, AGENT, CLIENT) · `ResourceStatus` (ACTI
 | `STORAGE_LOCAL_DIR` | `./storage` | Where the local driver writes binaries (gitignored) |
 | `STORAGE_SIGNED_URL_TTL_SECONDS` | `900` | Signed file url lifetime |
 | `STORAGE_MAX_FILE_SIZE_MB` | `10` | Per-file upload cap |
+| `JOB_SECRET` | required (≥32 chars) | Secret the external scheduler sends in `x-job-secret` |
 | `S3_BUCKET` | — | Required when `STORAGE_DRIVER=s3` |
 | `S3_ENDPOINT` | — | Account-level S3 endpoint, required when driver is `s3` |
 | `S3_ACCESS_KEY_ID` | — | Required when `STORAGE_DRIVER=s3` |
@@ -316,6 +321,16 @@ NEVER hand-compute `skip`/`take` or hardcode `orderBy: { createdAt: 'desc' }` �
 - Both nest as `/<owner>/:id/archivos/:archivoId`. The owner segment MUST stay `:id`: Elysia requires the same parameter name at the same position, and `polizaController` / `siniestroController` already register `/:id`.
 - Every operation is scoped through the poliza: `assertPolizaAccessible` resolves the poliza by `companyId` (and by `clienteUserId` when the caller is a CLIENT) and throws `NotFoundError` — never `ForbiddenError` — so a foreign poliza is indistinguishable from a missing one.
 - Routes are nested as `/polizas/:id/archivos/:archivoId`. The poliza segment MUST stay named `:id`: Elysia's router requires the same parameter name at the same position, and `polizaController` already registers `/polizas/:id`.
+
+### Scheduled Jobs (RF-POL-NOTIF-01)
+- Jobs are HTTP endpoints under `/api/v1/jobs`, invoked by an EXTERNAL scheduler (AWS Lambda, Cloudflare Worker Cron, cron-job.org). There is deliberately no in-process scheduler: with two API instances an in-process cron mails every client twice.
+- Authorization is the `x-job-secret` header compared against `JOB_SECRET` in constant time. No JWT. `env.ts` forces the secret to be at least 32 chars. That header IS the authorization, so never log it and never widen the route.
+- `POST /jobs/notificar-polizas-por-vencer` flips matching polizas to `PROXIMA_A_VENCER` and mails the company OWNER. `?hoy=YYYY-MM-DD` replays a specific day without touching the clock.
+- Thresholds are PER COMPANY (`Company.avisoVencimientoDias`, default `[30, 15, 7]`). Postgres cannot `MAX` an `int[]`, so the provider reads the configured days, widens the SQL window to the largest horizon, and matches each poliza against its own company's thresholds in memory. A notice fires only when `diasRestantes` equals a configured day exactly, so each threshold sends once.
+- Idempotency comes from `NotificacionEnviada` with a unique on `(tipo, entidadId, marca)`, written via `createMany({ skipDuplicates: true })` so the index answers in one round trip with no read-then-write race. The row is reserved BEFORE sending: if the send then fails the notice is not retried. That is the deliberate tradeoff for the spec's "evitar duplicidad" — losing one mail beats mailing a client twice.
+- A single bad address must never abort the run: each send is wrapped and counted in `fallidas`.
+- Companies without an active TRIAL/ACTIVA subscription are skipped, and a company with no active OWNER has nobody to notify so it is skipped too.
+- `marca` is a string, not a number, so the same table serves RF-HITO-EMAIL-01 later with `PROXIMO`/`HOY`/`VENCIDO` and needs no migration.
 
 ### Requirements Files
 - `reqs_overview.md` — sections 1-2 of the spec: scope and the **entity catalog** with field-level tables.

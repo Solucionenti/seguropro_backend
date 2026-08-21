@@ -18,6 +18,8 @@ const envSchema = z.object({
   PAGINATION_DEFAULT_PAGE_SIZE: z.coerce.number().int().min(1).default(20),
   PAGINATION_MAX_PAGE_SIZE: z.coerce.number().int().min(1).default(100),
   API_URL: z.string().url('API_URL must be a valid URL').default('http://localhost:3000'),
+  // the job endpoints are reachable without a jwt, so this secret IS their authorization
+  JOB_SECRET: z.string().min(32, 'JOB_SECRET must be at least 32 characters'),
   STORAGE_DRIVER: z.enum(['local', 's3']).default('local'),
   STORAGE_LOCAL_DIR: z.string().min(1).default('./storage'),
   STORAGE_SIGNED_URL_TTL_SECONDS: z.coerce.number().int().min(30).default(900),

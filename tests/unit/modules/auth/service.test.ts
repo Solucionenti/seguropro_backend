@@ -64,6 +64,7 @@ function createMocks() {
 
   const emailSender: Mocked<EmailSender> = {
     sendPasswordReset: mock(() => Promise.resolve()),
+    sendPolizaPorVencer: mock(() => Promise.resolve()),
   }
 
   return { authUserProvider, passwordHasher, jwtService, emailSender }
