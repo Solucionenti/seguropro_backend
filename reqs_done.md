@@ -37,6 +37,10 @@ Permite que un usuario con rol MASTER_ADMIN inicie sesión en la plataforma Segu
 
 ---
 
+---
+
+---
+
 #### RF-ADMIN-01 Listar usuarios MASTER_ADMIN
 
 **Descripción:**  
@@ -63,6 +67,10 @@ Permite visualizar el listado de todos los usuarios con rol MASTER_ADMIN registr
 **Reglas:**
 - No mostrar `passwordHash`.
 - Permitir paginación y filtros.
+
+---
+
+---
 
 ---
 
@@ -103,6 +111,10 @@ Permite que un MASTER_ADMIN cree otro usuario con rol MASTER_ADMIN.
 
 ---
 
+---
+
+---
+
 #### RF-ADMIN-03 Ver detalle de usuario MASTER_ADMIN
 
 **Descripción:**  
@@ -131,6 +143,10 @@ Permite visualizar la información completa de un usuario con rol MASTER_ADMIN.
 **Reglas:**
 - No exponer `passwordHash`.
 - Solo MASTER_ADMIN puede acceder.
+
+---
+
+---
 
 ---
 
@@ -167,6 +183,10 @@ Permite modificar información de un usuario con rol MASTER_ADMIN.
 
 ---
 
+---
+
+---
+
 #### RF-ADMIN-05 Eliminar (Desactivar) usuario MASTER_ADMIN
 
 **Descripción:**  
@@ -192,6 +212,10 @@ Permite desactivar un usuario con rol MASTER_ADMIN mediante eliminación lógica
 - Siempre debe existir al menos un MASTER_ADMIN activo.
 
 ___
+
+---
+
+---
 
 ---
 
@@ -224,6 +248,10 @@ Permite al MASTER_ADMIN visualizar el listado de todos los usuarios con rol OWNE
 - No mostrar `passwordHash`.
 - Debe poder filtrar por Empresa o estatus.
 - Siempre debe existir exactamente un OWNER por Empresa.
+
+---
+
+---
 
 ---
 
@@ -276,6 +304,10 @@ Permite que un MASTER_ADMIN cree un nuevo usuario con rol OWNER y, dentro del mi
 
 ---
 
+---
+
+---
+
 #### RF-OWNER-03 Ver detalle de OWNER (Nivel Plataforma)
 
 **Descripción:**  
@@ -297,6 +329,10 @@ Permite que un MASTER_ADMIN visualice el detalle completo de un OWNER y su Empre
 **Reglas:**
 - No exponer `passwordHash`.
 - Solo MASTER_ADMIN puede acceder a esta vista global.
+
+---
+
+---
 
 ---
 
@@ -329,6 +365,10 @@ Permite que el MASTER_ADMIN modifique la información de un OWNER.
 
 ---
 
+---
+
+---
+
 #### RF-OWNER-05 Eliminar (Desactivar) OWNER
 
 **Descripción:**  
@@ -348,6 +388,10 @@ Permite desactivar un OWNER mediante eliminación lógica.
 - No se permite eliminación física.
 - No puede quedar una Empresa activa sin OWNER activo.
 - Si se desactiva un OWNER, debe definirse reemplazo previamente.
+
+---
+
+---
 
 ---
 
@@ -385,6 +429,10 @@ Permite que una persona se registre como OWNER mediante una liga pública de onb
 
 ---
 
+---
+
+---
+
 #### RF-OWNER-07 Ver mi perfil (OWNER)
 
 **Descripción:**  
@@ -406,6 +454,10 @@ Permite que un OWNER autenticado visualice su información personal y la informa
 **Reglas:**
 - El OWNER solo puede ver información de su propia Empresa.
 - No mostrar `passwordHash`.
+
+---
+
+---
 
 ---
 
@@ -434,6 +486,10 @@ Permite que un OWNER edite su información personal.
 - El cambio de correo puede requerir verificación adicional.
 
 ___
+
+---
+
+---
 
 ---
 
@@ -469,6 +525,10 @@ Permite que un OWNER autenticado visualice la información completa de su Empres
 - El OWNER solo puede visualizar la Empresa asociada a su `empresaId`.
 - No puede visualizar información de otras Empresas.
 - No se permite acceso si la Empresa tiene `active = false`.
+
+---
+
+---
 
 ---
 
@@ -518,6 +578,10 @@ ___
 
 ---
 
+---
+
+---
+
 #### RF-PLAN-01 Listar Planes (Catálogo)
 
 **Descripción:**  
@@ -547,6 +611,10 @@ Permite al MASTER_ADMIN visualizar el listado de planes comerciales disponibles 
 **Reglas:**
 - No se debe mostrar información sensible inexistente (no aplica password).
 - Permitir filtrar por `active`.
+
+---
+
+---
 
 ---
 
@@ -590,6 +658,10 @@ Permite al MASTER_ADMIN crear un nuevo Plan del catálogo.
 
 ---
 
+---
+
+---
+
 #### RF-PLAN-03 Ver detalle de Plan
 
 **Descripción:**  
@@ -610,6 +682,10 @@ Permite al MASTER_ADMIN visualizar la información completa de un Plan.
 
 **Reglas:**
 - Solo MASTER_ADMIN puede acceder.
+
+---
+
+---
 
 ---
 
@@ -648,6 +724,10 @@ Permite al MASTER_ADMIN modificar la información de un Plan existente.
 
 ---
 
+---
+
+---
+
 #### RF-PLAN-05 Eliminar (Desactivar) Plan
 
 **Descripción:**  
@@ -673,6 +753,10 @@ Permite al MASTER_ADMIN desactivar un Plan del catálogo mediante eliminación l
 - No se permite eliminación física.
 
 ___
+
+---
+
+---
 
 ---
 
@@ -706,6 +790,10 @@ Permite al MASTER_ADMIN visualizar el listado de suscripciones registradas en el
 **Reglas:**
 - Permitir filtrar por Empresa, status y `active = true`.
 - No se permite acceso a roles distintos de MASTER_ADMIN.
+
+---
+
+---
 
 ---
 
@@ -749,6 +837,10 @@ Permite al MASTER_ADMIN crear una suscripción para una Empresa y asociarla a un
 
 ---
 
+---
+
+---
+
 #### RF-SUS-03 Ver detalle de Suscripción (Nivel Plataforma)
 
 **Descripción:**  
@@ -771,6 +863,10 @@ Permite al MASTER_ADMIN visualizar la información completa de una Suscripción,
 
 **Reglas:**
 - No se permite acceso a roles distintos de MASTER_ADMIN.
+
+---
+
+---
 
 ---
 
@@ -813,6 +909,10 @@ Permite al MASTER_ADMIN modificar información de una Suscripción existente (es
 
 ---
 
+---
+
+---
+
 #### RF-SUS-05 Eliminar (Desactivar) Suscripción (Nivel Plataforma)
 
 **Descripción:**  
@@ -839,6 +939,10 @@ Permite al MASTER_ADMIN desactivar una Suscripción mediante eliminación lógic
 - El control de acceso debe basarse en la suscripción vigente.
 
 ___
+
+---
+
+---
 
 ---
 
@@ -876,6 +980,10 @@ Permite al MASTER_ADMIN visualizar el listado de órdenes de facturación regist
 **Reglas:**
 - No mostrar información sensible del proveedor más allá de lo necesario.
 - Solo MASTER_ADMIN puede acceder a este listado global.
+
+---
+
+---
 
 ---
 
@@ -919,6 +1027,10 @@ Permite al MASTER_ADMIN registrar manualmente una Orden asociada a una Suscripci
 
 ---
 
+---
+
+---
+
 #### RF-ORD-03 Ver detalle de Orden (Nivel Plataforma)
 
 **Descripción:**  
@@ -947,6 +1059,10 @@ Permite al MASTER_ADMIN visualizar la información completa de una Orden.
 **Reglas:**
 - Solo MASTER_ADMIN puede acceder.
 - No permitir modificación desde esta vista.
+
+---
+
+---
 
 ---
 
@@ -987,6 +1103,10 @@ Permite al MASTER_ADMIN modificar el estado o datos administrativos de una Orden
 
 ---
 
+---
+
+---
+
 #### RF-ORD-05 Eliminar (Desactivar) Orden (Nivel Plataforma)
 
 **Descripción:**  
@@ -1012,6 +1132,10 @@ Permite al MASTER_ADMIN desactivar una Orden mediante eliminación lógica.
 - Las Órdenes forman parte del historial contable y deben conservar trazabilidad.
 
 ___
+
+---
+
+---
 
 ---
 
@@ -1050,6 +1174,10 @@ Permite a un usuario con rol OWNER visualizar el catálogo de Planes disponibles
 
 ---
 
+---
+
+---
+
 #### RF-PLAN-OWNER-02 Ver detalle de Plan (Vista OWNER)
 
 **Descripción:**  
@@ -1083,6 +1211,10 @@ ___
 
 ---
 
+---
+
+---
+
 #### RF-SUS-OWNER-01 Ver mi Suscripción Activa
 
 **Descripción:**  
@@ -1113,6 +1245,10 @@ Permite al OWNER visualizar la Suscripción activa asociada a su Empresa.
 - El OWNER solo puede visualizar la Suscripción de su propia Empresa.
 - No puede visualizar suscripciones históricas desde este flujo (salvo que se defina explícitamente).
 - El acceso es solo lectura.
+
+---
+
+---
 
 ---
 
@@ -1154,6 +1290,10 @@ Permite al OWNER crear una nueva Suscripción para su Empresa seleccionando un P
 
 ---
 
+---
+
+---
+
 #### RF-SUS-OWNER-03 Dar de Baja mi Suscripción
 
 **Descripción:**  
@@ -1185,6 +1325,10 @@ Permite al OWNER cancelar o desactivar la Suscripción activa de su Empresa.
 - Si `renovacionAutomatica = true`, debe deshabilitarse al cancelar.
 
 ___
+
+---
+
+---
 
 ---
 
@@ -1229,6 +1373,10 @@ Permite al OWNER generar una Orden asociada a la Suscripción activa de su Empre
 
 ---
 
+---
+
+---
+
 #### RF-ORD-OWNER-02 Listar mis Órdenes
 
 **Descripción:**  
@@ -1258,6 +1406,10 @@ Permite al OWNER visualizar las Órdenes asociadas a la Suscripción de su Empre
 **Reglas:**
 - El OWNER solo puede visualizar Órdenes de su propia Empresa.
 - No se muestran órdenes de otras Empresas.
+
+---
+
+---
 
 ---
 
@@ -1293,6 +1445,10 @@ Permite al OWNER visualizar la información completa de una Orden específica.
 **Reglas:**
 - Solo lectura (excepto pago a través del flujo RF-ORD-OWNER-04).
 - No exponer información sensible del proveedor más allá de los identificadores necesarios.
+
+---
+
+---
 
 ---
 
@@ -1334,6 +1490,10 @@ Permite al OWNER iniciar y completar el pago de una Orden pendiente mediante un 
 - La actualización de Orden y Suscripción debe ser transaccional.
 
 ___
+
+---
+
+---
 
 ---
 
@@ -1384,6 +1544,10 @@ Permite al OWNER crear un usuario con rol AGENT dentro de su Empresa, validando 
 
 ---
 
+---
+
+---
+
 #### RF-USR-CLI-01 Crear usuario CLIENT + DetalleCliente (flujo único)
 
 **Descripción:**  
@@ -1418,6 +1582,10 @@ Permite a OWNER o AGENT crear un usuario con rol CLIENT y, dentro del mismo fluj
 - Solo OWNER y AGENT pueden crear CLIENT.
 
  ___
+
+---
+
+---
 
 ---
 
@@ -1458,6 +1626,10 @@ ___
 
 ---
 
+---
+
+---
+
 #### RF-USR-EMP-03 Ver detalle de Usuario
 
 **Descripción:**  
@@ -1480,6 +1652,10 @@ Permite visualizar el detalle de un Usuario de la Empresa.
 - No mostrar passwordHash.
 
 ___
+
+---
+
+---
 
 ---
 
@@ -1517,6 +1693,10 @@ ___
 
 ---
 
+---
+
+---
+
 #### RF-USR-EMP-05 Eliminar (Desactivar) Usuario
 
 **Descripción:**  
@@ -1542,6 +1722,10 @@ Permite desactivar usuarios mediante eliminación lógica.
 - Los registros históricos permanecen.
 
 ___
+
+---
+
+---
 
 ---
 
@@ -1574,6 +1758,10 @@ Permite a usuarios con rol OWNER o AGENT visualizar el catálogo de Aseguradoras
 **Reglas:**
 - No se muestran Aseguradoras de otras Empresas.
 - Acceso solo lectura desde este flujo.
+
+---
+
+---
 
 ---
 
@@ -1617,6 +1805,10 @@ Permite a usuarios con rol OWNER o AGENT registrar una nueva Aseguradora dentro 
 
 ---
 
+---
+
+---
+
 #### RF-ASEG-03 Ver detalle de Aseguradora
 
 **Descripción:**  
@@ -1642,6 +1834,10 @@ Permite a usuarios con rol OWNER o AGENT consultar la información completa de u
 **Reglas:**
 - Validación obligatoria de coherencia `empresaId`.
 - No se permiten modificaciones desde este flujo.
+
+---
+
+---
 
 ---
 
@@ -1679,6 +1875,10 @@ Permite a usuarios con rol OWNER o AGENT modificar la información de una Asegur
 
 ---
 
+---
+
+---
+
 #### RF-ASEG-05 Eliminar (Desactivar) Aseguradora
 
 **Descripción:**  
@@ -1711,6 +1911,10 @@ ___
 
 ---
 
+---
+
+---
+
 #### RF-KAN-COL-01 Listar Columnas Kanban
 
 **Descripción:**  
@@ -1740,6 +1944,10 @@ Permite consultar las columnas Kanban activas configuradas para la Empresa.
 **Reglas:**
 - No se muestran columnas de otras Empresas.
 - No se muestran columnas inactivas en la consulta normal.
+
+---
+
+---
 
 ---
 
@@ -1778,6 +1986,10 @@ Permite crear una columna Kanban configurable para la Empresa.
 
 ---
 
+---
+
+---
+
 #### RF-KAN-COL-03 Ver detalle de Columna Kanban
 
 **Descripción:**  
@@ -1801,6 +2013,10 @@ Permite consultar el detalle de una columna Kanban de la Empresa.
 
 **Reglas:**
 - Si la columna no pertenece a la Empresa, debe tratarse como no encontrada.
+
+---
+
+---
 
 ---
 
@@ -1837,6 +2053,10 @@ Permite modificar el nombre o la prioridad de una columna Kanban.
 
 ---
 
+---
+
+---
+
 #### RF-KAN-COL-05 Eliminar (Desactivar) Columna Kanban
 
 **Descripción:**  
@@ -1860,6 +2080,10 @@ Permite desactivar una columna Kanban mediante eliminación lógica.
 - No se permite eliminación física.
 - Las tareas históricas permanecen asociadas para conservar trazabilidad.
 - Una columna inactiva no puede recibir nuevas tareas ni utilizarse para mover tareas.
+
+---
+
+---
 
 ---
 
@@ -1902,6 +2126,10 @@ Permite consultar las tareas Kanban de la Empresa, con filtros opcionales por co
 
 ---
 
+---
+
+---
+
 #### RF-KAN-TAR-02 Crear Tarea Kanban
 
 **Descripción:**  
@@ -1939,6 +2167,10 @@ Permite crear una tarea dentro de una columna Kanban, con asociación opcional a
 
 ---
 
+---
+
+---
+
 #### RF-KAN-TAR-03 Ver detalle de Tarea Kanban
 
 **Descripción:**  
@@ -1965,6 +2197,10 @@ Permite consultar una tarea Kanban y sus relaciones con la columna y la Póliza,
 **Reglas:**
 - No se exponen tareas fuera del tenant.
 - La ausencia de `polizaId` no debe impedir consultar la tarea.
+
+---
+
+---
 
 ---
 
@@ -2004,6 +2240,10 @@ Permite modificar los datos de una tarea y moverla a otra columna Kanban de la m
 
 ---
 
+---
+
+---
+
 #### RF-KAN-TAR-05 Eliminar (Desactivar) Tarea Kanban
 
 **Descripción:**  
@@ -2025,6 +2265,10 @@ Permite desactivar una tarea Kanban mediante eliminación lógica.
 **Reglas:**
 - No se permite eliminación física.
 - La Póliza asociada, si existe, no se modifica ni se elimina.
+
+---
+
+---
 
 ---
 
@@ -2069,6 +2313,10 @@ ___
 
 ---
 
+---
+
+---
+
 #### RF-POL-04 Editar Póliza
 
 **Descripción:**  
@@ -2106,6 +2354,10 @@ ___
 
 ---
 
+---
+
+---
+
 #### RF-POL-05 Eliminar (Desactivar) Póliza
 
 **Descripción:**  
@@ -2134,6 +2386,10 @@ Permite desactivar una Póliza mediante eliminación lógica.
 - CLIENT no puede desactivar pólizas.
 
 ___
+
+---
+
+---
 
 ---
 
@@ -2167,6 +2423,10 @@ Permite listar los archivos asociados a una Póliza.
 **Reglas:**
 - Validación estricta multi-tenant (la póliza debe pertenecer a la Empresa del usuario).
 - No se listan archivos inactivos salvo perfil autorizado (opcional).
+
+---
+
+---
 
 ---
 
@@ -2215,6 +2475,10 @@ Permite cargar un archivo asociado a una Póliza. El sistema almacena únicament
 
 ---
 
+---
+
+---
+
 #### RF-ARCH-03 Ver detalle de Archivo de Póliza
 
 **Descripción:**  
@@ -2244,6 +2508,10 @@ Permite consultar el detalle de un archivo asociado a una póliza.
 **Reglas:**
 - No exponer llaves privadas, tokens o credenciales del storage.
 - Se recomienda usar URLs firmadas si se requiere seguridad.
+
+---
+
+---
 
 ---
 
@@ -2280,6 +2548,10 @@ Permite modificar metadatos del archivo (si se requiere), manteniendo el archivo
 
 ---
 
+---
+
+---
+
 #### RF-ARCH-05 Eliminar (Desactivar) Archivo de Póliza
 
 **Descripción:**  
@@ -2306,6 +2578,10 @@ Permite desactivar un archivo asociado a una Póliza mediante eliminación lógi
 - CLIENT no puede eliminar archivos.
 
 ___
+
+---
+
+---
 
 ---
 
@@ -2343,6 +2619,10 @@ Permite listar los siniestros registrados dentro de la Empresa.
 **Reglas:**
 - No se permite visualizar siniestros de otras Empresas.
 - CLIENT solo ve sus siniestros.
+
+---
+
+---
 
 ---
 
@@ -2392,6 +2672,10 @@ Permite registrar un siniestro asociado a una Póliza.
 
 ---
 
+---
+
+---
+
 #### RF-SIN-03 Ver detalle de Siniestro
 
 **Descripción:**  
@@ -2421,6 +2705,10 @@ Permite consultar la información completa de un siniestro, incluyendo póliza a
 **Reglas:**
 - Validación estricta de `empresaId`.
 - No exponer datos sensibles.
+
+---
+
+---
 
 ---
 
@@ -2463,6 +2751,10 @@ Permite modificar información de un siniestro.
 
 ---
 
+---
+
+---
+
 #### RF-SIN-05 Eliminar (Desactivar) Siniestro
 
 **Descripción:**  
@@ -2489,6 +2781,10 @@ Permite desactivar un siniestro mediante eliminación lógica.
 - CLIENT no puede desactivar siniestros.
 
 ___
+
+---
+
+---
 
 ---
 
@@ -2522,6 +2818,10 @@ Permite listar los archivos asociados a un Siniestro.
 **Reglas:**
 - Validación estricta multi-tenant (el siniestro debe pertenecer a la Empresa del usuario).
 - CLIENT solo lectura.
+
+---
+
+---
 
 ---
 
@@ -2570,6 +2870,10 @@ Permite cargar un archivo asociado a un Siniestro. El sistema almacena únicamen
 
 ---
 
+---
+
+---
+
 #### RF-ARCH-SIN-03 Ver detalle de Archivo de Siniestro
 
 **Descripción:**  
@@ -2599,6 +2903,10 @@ Permite consultar el detalle de un archivo asociado a un siniestro.
 **Reglas:**
 - No exponer tokens/credenciales del storage.
 - Se recomienda URL firmada si se requiere control de acceso.
+
+---
+
+---
 
 ---
 
@@ -2635,6 +2943,10 @@ Permite modificar metadatos del archivo (si se requiere), manteniendo el archivo
 
 ---
 
+---
+
+---
+
 #### RF-ARCH-SIN-05 Eliminar (Desactivar) Archivo de Siniestro
 
 **Descripción:**  
@@ -2661,6 +2973,10 @@ Permite desactivar un archivo asociado a un siniestro mediante eliminación lóg
 - CLIENT no puede eliminar archivos.
 
 ___
+
+---
+
+---
 
 ---
 
@@ -2704,6 +3020,10 @@ La liga de inicio de sesión será generada en el frontend e incluirá el identi
 - La sesión/token debe incluir `empresaId` y `role` como claims para validación en cada request.
 
 ___
+
+---
+
+---
 
 ---
 
@@ -2754,3 +3074,232 @@ La liga de inicio de sesión será generada en el frontend e incluirá el identi
   - Archivos asociados
 
 ___
+
+---
+
+---
+
+#### RF-GLO-01 Listar Términos de Glosario
+
+**Descripción:**  
+Permite listar los términos registrados en el Glosario de la Empresa.
+
+**Roles y Alcance:**
+- OWNER → Puede listar todos los términos.
+- AGENT → Puede listar todos los términos.
+- CLIENT → Solo lectura (si el acceso está habilitado).
+
+**Precondiciones:**
+- Usuario autenticado.
+- Usuario pertenece a una Empresa.
+- Empresa con Suscripción activa (TRIAL o ACTIVA).
+- `active = true`.
+
+**Flujo principal:**
+1. El usuario accede al módulo “Glosario”.
+2. El sistema consulta la entidad Glosario filtrando:
+   - `empresaId = usuario.empresaId`
+   - `active = true`
+3. El sistema muestra:
+   - titulo
+   - descripcion (resumen o preview)
+   - createdAt
+4. Permitir búsqueda por título.
+5. Permitir paginación y ordenamiento.
+
+**Reglas:**
+- No se muestran términos de otras Empresas.
+- CLIENT solo puede visualizar (sin edición).
+
+---
+
+---
+
+---
+
+---
+
+#### RF-GLO-02 Crear Término de Glosario
+
+**Descripción:**  
+Permite registrar un nuevo término en el Glosario de la Empresa.
+
+**Roles:**
+- OWNER
+- AGENT
+
+**Precondiciones:**
+- Usuario autenticado con `role = OWNER` o `AGENT`.
+- Empresa con Suscripción activa.
+
+**Flujo principal:**
+1. El usuario selecciona “Crear Término”.
+2. Captura:
+   - titulo
+   - descripcion
+3. El sistema valida:
+   - Título no vacío.
+   - UNIQUE (empresaId, titulo).
+4. El sistema crea el registro con:
+   - `empresaId = usuario.empresaId`
+   - `active = true`
+5. Registrar auditoría.
+
+**Reglas:**
+- CLIENT no puede crear términos.
+- No existe glosario global compartido.
+
+---
+
+---
+
+---
+
+---
+
+#### RF-GLO-03 Ver detalle de Término
+
+**Descripción:**  
+Permite consultar la información completa de un término del Glosario.
+
+**Roles y Alcance:**
+- OWNER
+- AGENT
+- CLIENT (solo lectura)
+
+**Precondiciones:**
+- Término pertenece a la misma Empresa.
+- `active = true`.
+
+**Flujo principal:**
+1. El usuario selecciona un término.
+2. El sistema muestra:
+   - titulo
+   - descripcion
+   - createdAt
+   - updatedAt
+
+**Reglas:**
+- Validación estricta de `empresaId`.
+- No exponer términos inactivos salvo perfil autorizado (opcional).
+
+---
+
+---
+
+---
+
+---
+
+#### RF-GLO-04 Editar Término de Glosario
+
+**Descripción:**  
+Permite modificar un término existente del Glosario.
+
+**Roles:**
+- OWNER
+- AGENT
+
+**Precondiciones:**
+- Usuario autenticado.
+- Empresa con Suscripción activa.
+- Término activo.
+
+**Flujo principal:**
+1. El usuario accede a “Editar Término”.
+2. Puede modificar:
+   - titulo
+   - descripcion
+3. El sistema valida:
+   - UNIQUE (empresaId, titulo).
+4. Guardar cambios.
+5. Actualizar `updatedAt`.
+6. Registrar auditoría.
+
+**Reglas:**
+- No se permite cambiar `empresaId`.
+- CLIENT no puede editar términos.
+
+---
+
+---
+
+---
+
+---
+
+#### RF-GLO-05 Eliminar (Desactivar) Término de Glosario
+
+**Descripción:**  
+Permite desactivar un término mediante eliminación lógica.
+
+**Roles:**
+- OWNER
+- AGENT
+
+**Precondiciones:**
+- Usuario autenticado.
+- Término pertenece a la Empresa.
+
+**Flujo principal:**
+1. El usuario selecciona “Eliminar”.
+2. Confirmación.
+3. Actualizar:
+   - `active = false`
+4. Registrar auditoría.
+
+**Reglas:**
+- No eliminación física.
+- CLIENT no puede eliminar términos.
+- Los términos inactivos no deben mostrarse en búsquedas normales.
+
+___
+
+---
+
+---
+
+#### RF-POL-NOTIF-01 Notificación por correo de Póliza próxima a vencer
+
+**Descripción:**  
+Envía notificación por correo cuando una Póliza esté próxima a vencer, para alertar a los responsables y/o al cliente (si aplica).
+
+**Roles:**  
+- Sistema (proceso automático)
+- (Configuración / consulta): OWNER
+
+**Precondiciones:**
+- Empresa con Suscripción activa (`status = TRIAL` o `ACTIVA`).
+- Existe configuración del umbral de aviso (ej. 30/15/7 días) a nivel Empresa o global (definir).
+- La Póliza está activa (`active = true`) y tiene `fechaVencimiento`.
+
+**Flujo principal (automático):**
+1. Un proceso programado (cron) se ejecuta diariamente.
+2. El sistema consulta pólizas con:
+   - `status = ACTIVA`
+   - `fechaVencimiento` dentro del umbral configurado (ej. hoy + N días)
+3. El sistema actualiza `status` a `PROXIMA_A_VENCER` si aplica.
+4. El sistema envía correo a:
+   - OWNER de la Empresa (obligatorio)
+   - AGENT creador o responsable (si se define)
+   - CLIENT (opcional y solo si se habilita acceso / notificaciones)
+5. El sistema registra bitácora de notificación enviada.
+
+**Reglas / Validaciones:**
+- Evitar duplicidad: no enviar el mismo correo múltiples veces para el mismo umbral (guardar log).
+- Solo aplica a pólizas con `fechaVencimiento` válida.
+- Si la suscripción está vencida/suspendida, se puede:
+  - detener notificaciones, o
+  - enviar solo notificaciones administrativas (definir política).
+- Plantilla de correo debe incluir:
+  - cliente
+  - aseguradora
+  - numeroPoliza
+  - fechaVencimiento
+  - enlace al detalle (con empresaId)
+
+---
+
+---
+
+---

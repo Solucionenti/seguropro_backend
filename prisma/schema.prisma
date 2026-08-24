@@ -82,6 +82,7 @@ model Company {
   tareasKanban   TareaKanban[]
   polizas        Poliza[]
   siniestros     Siniestro[]
+  glosarios      Glosario[]
 
   @@map("companies")
 }
@@ -405,4 +406,21 @@ model NotificacionEnviada {
   @@unique([tipo, entidadId, marca], name: "notificacion_unica_por_umbral")
   @@index([tipo, enviadoEn])
   @@map("notificaciones_enviadas")
+}
+
+model Glosario {
+  id          String  @id @default(uuid())
+  companyId   String
+  titulo      String
+  descripcion String
+  active      Boolean @default(true)
+
+  status    ResourceStatus @default(ACTIVE)
+  createdAt DateTime       @default(now())
+  updatedAt DateTime       @updatedAt
+
+  company Company @relation(fields: [companyId], references: [id])
+
+  @@unique([companyId, titulo], name: "glosario_company_titulo_unique")
+  @@map("glosarios")
 }

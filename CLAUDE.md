@@ -79,6 +79,8 @@ prisma/schema.prisma                 # Single source of truth for models and enu
 | | `PATCH /api/v1/ordenes/mis-ordenes/:id/pagar`, `PATCH /api/v1/ordenes/mis-ordenes/:id/pagar-primera` | `OWNER` |
 | `aseguradora` | `GET/POST /api/v1/aseguradoras`, `GET/PATCH/DELETE /api/v1/aseguradoras/:id` | `OWNER`, `AGENT` |
 | `ramo` | `GET/POST /api/v1/ramos`, `GET/PATCH/DELETE /api/v1/ramos/:id` | `OWNER`, `AGENT` |
+| `glosario` | `GET /api/v1/glosarios`, `GET /api/v1/glosarios/:id` | `OWNER`, `AGENT`, `CLIENT` (read-only) |
+| | `POST /api/v1/glosarios`, `PATCH/DELETE /api/v1/glosarios/:id` | `OWNER`, `AGENT` |
 | `poliza` | `GET /api/v1/polizas`, `GET /api/v1/polizas/:id` | `OWNER`, `AGENT`, `CLIENT` (own only) |
 | | `POST /api/v1/polizas`, `PATCH/DELETE /api/v1/polizas/:id` | `OWNER`, `AGENT` |
 | | `GET /api/v1/polizas/mis-polizas`, `GET /api/v1/polizas/mis-polizas/:id` | `CLIENT` |
@@ -118,6 +120,8 @@ ArchivoPoliza id, polizaId, nombre, mimeType, storageKey, tamanoBytes, active, s
              @@index([polizaId]) · only metadata + storageKey; binaries live in the storage provider
 ArchivoSiniestro id, siniestroId, nombre, mimeType, storageKey, tamanoBytes, active, status, createdAt, updatedAt
              @@index([siniestroId]) · same shape as ArchivoPoliza
+Glosario     id, companyId, titulo, descripcion, active, status, createdAt, updatedAt
+             @@unique([companyId, titulo]) · per-tenant glossary, no global catalog
 NotificacionEnviada id, tipo, entidadId, marca, enviadoEn, status, createdAt, updatedAt
              @@unique([tipo, entidadId, marca]) · anti-duplicate log for scheduled jobs
 ```
@@ -332,9 +336,15 @@ NEVER hand-compute `skip`/`take` or hardcode `orderBy: { createdAt: 'desc' }` �
 - Companies without an active TRIAL/ACTIVA subscription are skipped, and a company with no active OWNER has nobody to notify so it is skipped too.
 - `marca` is a string, not a number, so the same table serves RF-HITO-EMAIL-01 later with `PROXIMO`/`HOY`/`VENCIDO` and needs no migration.
 
+### Glosario (RF-GLO-01..05)
+- Per-tenant catalog of terms, NOT a global one: `@@unique([companyId, titulo])`, so two companies can define the same `titulo` independently. The uniqueness check in the service is always scoped by `companyId`.
+- `titulo` AND `descripcion` are both required (the entity catalog marks both mandatory, and RF-GLO-02 captures both).
+- CLIENT is read-only: it reaches `GET /glosarios` and `GET /glosarios/:id` but gets 403 on write. OWNER and AGENT have full CRUD.
+- Soft delete only. A deactivated term disappears from the listing and its detail answers 404, per RF-GLO-05.
+
 ### Requirements Files
 - `reqs_overview.md` — sections 1-2 of the spec: scope and the **entity catalog** with field-level tables.
-- `reqs_done.md` (81 RF) and `reqs_pending.md` (15 RF) — the requirements themselves, split by implementation status.
+- `reqs_done.md` (87 RF) and `reqs_pending.md` (9 RF) — the requirements themselves, split by implementation status.
 - The entity catalog and the RF sections DISAGREE in places. When they do, treat the entity catalog as the field-level authority and the RF as the flow authority, and flag it here.
 - Known contradictions:
   - **Hito Siniestro**: the catalog says `tarea`, `fechaLimite` (mandatory), `asignadoAUserId`, plus an `alerta` boolean and `status` enum `(PENDIENTE, EN_PROCESO, COMPLETADO, VENCIDO, CANCELADO)`. RF-HITO-02 instead says `titulo`, `fechaLimite` (optional), `responsableUserId`, and never mentions `alerta`. Resolve this BEFORE building the module.

@@ -40,6 +40,10 @@ Permite listar los hitos asociados a un Siniestro específico.
 
 ---
 
+---
+
+---
+
 #### RF-HITO-02 Crear Hito de Siniestro
 
 **Descripción:**  
@@ -77,6 +81,10 @@ Permite registrar un nuevo hito (tarea o evento clave) dentro de un Siniestro.
 
 ---
 
+---
+
+---
+
 #### RF-HITO-03 Ver detalle de Hito de Siniestro
 
 **Descripción:**  
@@ -105,6 +113,10 @@ Permite consultar la información completa de un Hito.
 **Reglas:**
 - Validación estricta de empresaId vía siniestro.
 - No exponer información fuera del entorno.
+
+---
+
+---
 
 ---
 
@@ -147,6 +159,10 @@ Permite modificar la información de un Hito.
 
 ---
 
+---
+
+---
+
 #### RF-HITO-05 Eliminar (Desactivar) Hito de Siniestro
 
 **Descripción:**  
@@ -175,207 +191,6 @@ Permite desactivar un Hito mediante eliminación lógica.
 ___
 
 ---
-
-#### RF-GLO-01 Listar Términos de Glosario
-
-**Descripción:**  
-Permite listar los términos registrados en el Glosario de la Empresa.
-
-**Roles y Alcance:**
-- OWNER → Puede listar todos los términos.
-- AGENT → Puede listar todos los términos.
-- CLIENT → Solo lectura (si el acceso está habilitado).
-
-**Precondiciones:**
-- Usuario autenticado.
-- Usuario pertenece a una Empresa.
-- Empresa con Suscripción activa (TRIAL o ACTIVA).
-- `active = true`.
-
-**Flujo principal:**
-1. El usuario accede al módulo “Glosario”.
-2. El sistema consulta la entidad Glosario filtrando:
-   - `empresaId = usuario.empresaId`
-   - `active = true`
-3. El sistema muestra:
-   - titulo
-   - descripcion (resumen o preview)
-   - createdAt
-4. Permitir búsqueda por título.
-5. Permitir paginación y ordenamiento.
-
-**Reglas:**
-- No se muestran términos de otras Empresas.
-- CLIENT solo puede visualizar (sin edición).
-
----
-
----
-
-#### RF-GLO-02 Crear Término de Glosario
-
-**Descripción:**  
-Permite registrar un nuevo término en el Glosario de la Empresa.
-
-**Roles:**
-- OWNER
-- AGENT
-
-**Precondiciones:**
-- Usuario autenticado con `role = OWNER` o `AGENT`.
-- Empresa con Suscripción activa.
-
-**Flujo principal:**
-1. El usuario selecciona “Crear Término”.
-2. Captura:
-   - titulo
-   - descripcion
-3. El sistema valida:
-   - Título no vacío.
-   - UNIQUE (empresaId, titulo).
-4. El sistema crea el registro con:
-   - `empresaId = usuario.empresaId`
-   - `active = true`
-5. Registrar auditoría.
-
-**Reglas:**
-- CLIENT no puede crear términos.
-- No existe glosario global compartido.
-
----
-
----
-
-#### RF-GLO-03 Ver detalle de Término
-
-**Descripción:**  
-Permite consultar la información completa de un término del Glosario.
-
-**Roles y Alcance:**
-- OWNER
-- AGENT
-- CLIENT (solo lectura)
-
-**Precondiciones:**
-- Término pertenece a la misma Empresa.
-- `active = true`.
-
-**Flujo principal:**
-1. El usuario selecciona un término.
-2. El sistema muestra:
-   - titulo
-   - descripcion
-   - createdAt
-   - updatedAt
-
-**Reglas:**
-- Validación estricta de `empresaId`.
-- No exponer términos inactivos salvo perfil autorizado (opcional).
-
----
-
----
-
-#### RF-GLO-04 Editar Término de Glosario
-
-**Descripción:**  
-Permite modificar un término existente del Glosario.
-
-**Roles:**
-- OWNER
-- AGENT
-
-**Precondiciones:**
-- Usuario autenticado.
-- Empresa con Suscripción activa.
-- Término activo.
-
-**Flujo principal:**
-1. El usuario accede a “Editar Término”.
-2. Puede modificar:
-   - titulo
-   - descripcion
-3. El sistema valida:
-   - UNIQUE (empresaId, titulo).
-4. Guardar cambios.
-5. Actualizar `updatedAt`.
-6. Registrar auditoría.
-
-**Reglas:**
-- No se permite cambiar `empresaId`.
-- CLIENT no puede editar términos.
-
----
-
----
-
-#### RF-GLO-05 Eliminar (Desactivar) Término de Glosario
-
-**Descripción:**  
-Permite desactivar un término mediante eliminación lógica.
-
-**Roles:**
-- OWNER
-- AGENT
-
-**Precondiciones:**
-- Usuario autenticado.
-- Término pertenece a la Empresa.
-
-**Flujo principal:**
-1. El usuario selecciona “Eliminar”.
-2. Confirmación.
-3. Actualizar:
-   - `active = false`
-4. Registrar auditoría.
-
-**Reglas:**
-- No eliminación física.
-- CLIENT no puede eliminar términos.
-- Los términos inactivos no deben mostrarse en búsquedas normales.
-
-___
-
----
-
-#### RF-POL-NOTIF-01 Notificación por correo de Póliza próxima a vencer
-
-**Descripción:**  
-Envía notificación por correo cuando una Póliza esté próxima a vencer, para alertar a los responsables y/o al cliente (si aplica).
-
-**Roles:**  
-- Sistema (proceso automático)
-- (Configuración / consulta): OWNER
-
-**Precondiciones:**
-- Empresa con Suscripción activa (`status = TRIAL` o `ACTIVA`).
-- Existe configuración del umbral de aviso (ej. 30/15/7 días) a nivel Empresa o global (definir).
-- La Póliza está activa (`active = true`) y tiene `fechaVencimiento`.
-
-**Flujo principal (automático):**
-1. Un proceso programado (cron) se ejecuta diariamente.
-2. El sistema consulta pólizas con:
-   - `status = ACTIVA`
-   - `fechaVencimiento` dentro del umbral configurado (ej. hoy + N días)
-3. El sistema actualiza `status` a `PROXIMA_A_VENCER` si aplica.
-4. El sistema envía correo a:
-   - OWNER de la Empresa (obligatorio)
-   - AGENT creador o responsable (si se define)
-   - CLIENT (opcional y solo si se habilita acceso / notificaciones)
-5. El sistema registra bitácora de notificación enviada.
-
-**Reglas / Validaciones:**
-- Evitar duplicidad: no enviar el mismo correo múltiples veces para el mismo umbral (guardar log).
-- Solo aplica a pólizas con `fechaVencimiento` válida.
-- Si la suscripción está vencida/suspendida, se puede:
-  - detener notificaciones, o
-  - enviar solo notificaciones administrativas (definir política).
-- Plantilla de correo debe incluir:
-  - cliente
-  - aseguradora
-  - numeroPoliza
-  - fechaVencimiento
-  - enlace al detalle (con empresaId)
 
 ---
 
@@ -427,6 +242,10 @@ ___
 
 ---
 
+---
+
+---
+
 #### RF-HITO-ALERT-01 Alertas y notificaciones por Hitos (correo + alertas en sistema)
 
 **Descripción:**  
@@ -444,6 +263,10 @@ El sistema debe:
 - Empresa con Suscripción activa (`status = TRIAL` o `ACTIVA`).
 - Existe al menos un Hito activo (`active = true`) asociado a un Siniestro activo.
 - Los Hitos tienen `fechaLimite` (cuando aplique) y un `status` operativo.
+
+---
+
+---
 
 ---
 
@@ -484,6 +307,10 @@ Permite a OWNER y AGENT visualizar un panel con los próximos Hitos y vencidos d
 - Validación estricta multi-tenant.
 - No se muestran hitos inactivos.
 - CLIENT no tiene acceso a este panel (salvo que se defina).
+
+---
+
+---
 
 ---
 

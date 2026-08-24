@@ -15,6 +15,8 @@ import { ColumnaKanbanService } from '@/modules/columna-kanban/application/servi
 import { PrismaColumnaKanbanRepository } from '@/modules/columna-kanban/infrastructure/prisma-repo'
 import { CompanyService } from '@/modules/company/application/service'
 import { PrismaCompanyRepository } from '@/modules/company/infrastructure/prisma-repo'
+import { GlosarioService } from '@/modules/glosario/application/service'
+import { PrismaGlosarioRepository } from '@/modules/glosario/infrastructure/prisma-repo'
 import { HealthService } from '@/modules/health/application/service'
 import { PrismaHealthRepository } from '@/modules/health/infrastructure/prisma-repo'
 import { NotificacionService } from '@/modules/notificacion/application/service'
@@ -77,6 +79,7 @@ const polizaClienteProvider = new PrismaClienteUserProvider(prisma)
 const tareaKanbanColumnaProvider = new PrismaTareaKanbanColumnaProvider(prisma)
 const tareaKanbanPolizaProvider = new PrismaTareaKanbanPolizaProvider(prisma)
 const companyRepo = new PrismaCompanyRepository(prisma)
+const glosarioRepo = new PrismaGlosarioRepository(prisma)
 const siniestroRepo = new PrismaSiniestroRepository(prisma)
 const siniestroPolizaProvider = new PrismaPolizaProvider(prisma)
 const archivoPolizaRepo = new PrismaArchivoPolizaRepository(prisma)
@@ -143,6 +146,7 @@ const polizaService = new PolizaService(
   polizaClienteProvider,
 )
 const companyService = new CompanyService(companyRepo)
+const glosarioService = new GlosarioService(glosarioRepo)
 const notificacionService = new NotificacionService(
   polizaVencimientoProvider,
   notificacionRepo,
@@ -255,3 +259,8 @@ export const archivoSiniestroServicePlugin = new Elysia({
 export const notificacionServicePlugin = new Elysia({
   name: '@app/services/notificacion',
 }).decorate('notificacionService', notificacionService)
+
+export const glosarioServicePlugin = new Elysia({ name: '@app/services/glosario' }).decorate(
+  'glosarioService',
+  glosarioService,
+)

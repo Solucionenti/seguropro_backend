@@ -160,6 +160,11 @@
 - Soft-delete keeps the binary in the storage provider on purpose, for traceability.
 - Both nest as `/<owner>/:id/archivos/:archivoId` — keep the owner segment named `:id`.
 
+### Glosario (RF-GLO-01..05)
+- Per-tenant term catalog, never global: `@@unique([companyId, titulo])`, so two companies can define the same `titulo`. The service always scopes the uniqueness check by `companyId`.
+- Both `titulo` and `descripcion` are required.
+- CLIENT is read-only (403 on write); OWNER and AGENT have full CRUD. Soft delete only.
+
 ### Scheduled Jobs (RF-POL-NOTIF-01)
 - Jobs are HTTP endpoints under `/api/v1/jobs`, called by an EXTERNAL scheduler (Lambda, Worker Cron, cron-job.org). NO in-process scheduler on purpose: with two API instances an in-process cron mails every client twice.
 - Auth is the `x-job-secret` header compared in constant time against `JOB_SECRET` (min 32 chars, enforced in `env.ts`). No JWT. Never log it, never widen the route.
