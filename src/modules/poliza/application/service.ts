@@ -1,3 +1,4 @@
+import { PolizaStatus } from '@gen/enums'
 import { NotFoundError } from '@/shared/domain/not-found-error'
 import type { Page, Pageable } from '@/shared/domain/pagination'
 import { ValidationError } from '@/shared/domain/validation-error'
@@ -7,6 +8,7 @@ import type { PolizaWithDetails } from '../domain/entities'
 import type { RamoProvider } from '../domain/ramo-provider'
 import type { PolizaRepository } from '../domain/repository'
 import type {
+  CrearRenovacionServiceInput,
   CreatePolizaServiceInput,
   IPolizaService,
   ListPolizasFilters,
@@ -86,8 +88,19 @@ export class PolizaService implements IPolizaService {
     const existing = await this.getById(id, companyId)
 
     const fechaVencimiento = input.fechaVencimiento ?? existing.fechaVencimiento
-    if (fechaVencimiento < existing.fechaInicio) {
+    if (fechaVencimiento && existing.fechaInicio && fechaVencimiento < existing.fechaInicio) {
       throw new ValidationError('fechaVencimiento must be greater than or equal to fechaInicio')
+    }
+
+    // entity catalog: numeroPoliza, fechaInicio and fechaVencimiento are mandatory as
+    // soon as the poliza stops being a quote, so it cannot be emitted half filled
+    const polizaStatus = input.polizaStatus ?? existing.polizaStatus
+    if (polizaStatus !== PolizaStatus.COTIZACION) {
+      if (!existing.numeroPoliza || !existing.fechaInicio || !fechaVencimiento) {
+        throw new ValidationError(
+          `numeroPoliza, fechaInicio and fechaVencimiento are required to leave COTIZACION (target status ${polizaStatus})`,
+        )
+      }
     }
 
     const primaNeta = input.primaNeta ?? existing.primaNeta
@@ -105,5 +118,29 @@ export class PolizaService implements IPolizaService {
   async softDelete(id: string, companyId: string): Promise<void> {
     await this.getById(id, companyId)
     return this.repo.softDelete(id)
+  }
+
+  // a renewal is born as a quote pointing back at its predecessor, with no numeroPoliza
+  // and no dates. the primas are copied from the origin so the create contract, which
+  // requires them, stays untouched
+  async crearRenovacion(input: CrearRenovacionServiceInput): Promise<PolizaWithDetails> {
+    const origen = await this.getById(input.polizaOrigenId, input.companyId)
+
+    // one renewal per origin poliza
+    const renovacionExistente = await this.repo.findRenovacionActiva(origen.id)
+    if (renovacionExistente) {
+      throw new ValidationError('This poliza already has an active renovacion')
+    }
+
+    return this.repo.createRenovacion({
+      companyId: origen.companyId,
+      aseguradoraId: origen.aseguradoraId,
+      ramoId: origen.ramoId,
+      clienteUserId: origen.clienteUserId,
+      primaNeta: origen.primaNeta,
+      primaTotal: origen.primaTotal,
+      polizaAnteriorId: origen.id,
+      creadoPorUserId: input.creadoPorUserId,
+    })
   }
 }

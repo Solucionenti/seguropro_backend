@@ -160,6 +160,19 @@
 - Soft-delete keeps the binary in the storage provider on purpose, for traceability.
 - Both nest as `/<owner>/:id/archivos/:archivoId` — keep the owner segment named `:id`.
 
+### Hitos de Siniestro
+- Field names follow the **entity catalog**, the field-level authority when it disagrees with the RF text: `tarea` (not `titulo`), `asignadoAUserId` (not `responsableUserId`), required `fechaLimite`, plus an `alerta` boolean the job watches. Do not rename them back.
+- `fechaLimite` cannot be in the past. `asignadoAUserId` must be an active OWNER or AGENT of the same company. `siniestroId` is immutable. CLIENT is read-only on their own siniestros.
+- Nested as `/siniestros/:id/hitos/:hitoId` — keep the owner segment named `:id`.
+
+### Alert Panel and Hito Notices
+- `GET /hitos-alertas` derives severity from `fechaLimite` on every read and never stores it. Since it is derived it cannot be sorted or filtered in SQL: order by `fechaLimite asc` (overdue first) and filter in memory, paginating AFTER so `total` is honest.
+- `POST /jobs/notificar-hitos` mails assignee + OWNER, deduplicated, only for hitos with `alerta = true` and an open status. `marca` is `VENCIDO`, `HOY` or `PROXIMO-<n>` so each milestone fires once.
+
+### Poliza Renewal
+- `POST /polizas/:id/renovar` makes a `COTIZACION` linked through `polizaAnteriorId`, copying aseguradora, ramo, cliente and both primas. One renewal per origin while it is active.
+- `numeroPoliza`, `fechaInicio` and `fechaVencimiento` are nullable but required to leave `COTIZACION`; `PolizaService.update` enforces it. A siniestro cannot be filed against a poliza with no coverage window.
+
 ### Glosario (RF-GLO-01..05)
 - Per-tenant term catalog, never global: `@@unique([companyId, titulo])`, so two companies can define the same `titulo`. The service always scopes the uniqueness check by `companyId`.
 - Both `titulo` and `descripcion` are required.

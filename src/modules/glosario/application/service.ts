@@ -54,7 +54,7 @@ export class GlosarioService implements IGlosarioService {
     return this.repo.softDelete(id)
   }
 
-  // the titulo is unique per company, never globally: every tenant keeps its own glossary
+  // unique per company, never globally
   private async assertTituloLibre(
     titulo: string,
     companyId: string,

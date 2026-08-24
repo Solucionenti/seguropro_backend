@@ -19,7 +19,13 @@ import { GlosarioService } from '@/modules/glosario/application/service'
 import { PrismaGlosarioRepository } from '@/modules/glosario/infrastructure/prisma-repo'
 import { HealthService } from '@/modules/health/application/service'
 import { PrismaHealthRepository } from '@/modules/health/infrastructure/prisma-repo'
+import { HitoService } from '@/modules/hito-siniestro/application/service'
+import { PrismaAlertaRepository } from '@/modules/hito-siniestro/infrastructure/prisma-alerta-repo'
+import { PrismaAsignadoUserProvider } from '@/modules/hito-siniestro/infrastructure/prisma-asignado-user-provider'
+import { PrismaHitoRepository } from '@/modules/hito-siniestro/infrastructure/prisma-repo'
+import { PrismaSiniestroProvider as PrismaHitoSiniestroProvider } from '@/modules/hito-siniestro/infrastructure/prisma-siniestro-provider'
 import { NotificacionService } from '@/modules/notificacion/application/service'
+import { PrismaHitoAlertaProvider } from '@/modules/notificacion/infrastructure/prisma-hito-alerta-provider'
 import { PrismaPolizaVencimientoProvider } from '@/modules/notificacion/infrastructure/prisma-poliza-vencimiento-provider'
 import { PrismaNotificacionRepository } from '@/modules/notificacion/infrastructure/prisma-repo'
 import { OrdenService } from '@/modules/orden/application/service'
@@ -80,6 +86,10 @@ const tareaKanbanColumnaProvider = new PrismaTareaKanbanColumnaProvider(prisma)
 const tareaKanbanPolizaProvider = new PrismaTareaKanbanPolizaProvider(prisma)
 const companyRepo = new PrismaCompanyRepository(prisma)
 const glosarioRepo = new PrismaGlosarioRepository(prisma)
+const hitoRepo = new PrismaHitoRepository(prisma)
+const hitoAlertaRepo = new PrismaAlertaRepository(prisma)
+const hitoSiniestroProvider = new PrismaHitoSiniestroProvider(prisma)
+const hitoAsignadoProvider = new PrismaAsignadoUserProvider(prisma)
 const siniestroRepo = new PrismaSiniestroRepository(prisma)
 const siniestroPolizaProvider = new PrismaPolizaProvider(prisma)
 const archivoPolizaRepo = new PrismaArchivoPolizaRepository(prisma)
@@ -87,6 +97,7 @@ const archivoPolizaProvider = new PrismaArchivoPolizaProvider(prisma)
 const storageQuota = new PrismaStorageQuota(prisma)
 const notificacionRepo = new PrismaNotificacionRepository(prisma)
 const polizaVencimientoProvider = new PrismaPolizaVencimientoProvider(prisma)
+const hitoAlertaNotifProvider = new PrismaHitoAlertaProvider(prisma)
 const archivoSiniestroRepo = new PrismaArchivoSiniestroRepository(prisma)
 const archivoSiniestroProvider = new PrismaArchivoSiniestroProvider(prisma)
 // local keeps binaries on disk and signs urls this api serves; s3 works against any
@@ -147,11 +158,18 @@ const polizaService = new PolizaService(
 )
 const companyService = new CompanyService(companyRepo)
 const glosarioService = new GlosarioService(glosarioRepo)
+const hitoService = new HitoService(
+  hitoRepo,
+  hitoAlertaRepo,
+  hitoSiniestroProvider,
+  hitoAsignadoProvider,
+)
 const notificacionService = new NotificacionService(
   polizaVencimientoProvider,
+  hitoAlertaNotifProvider,
   notificacionRepo,
   emailSender,
-  { appUrl: envConfig.APP_URL },
+  { appUrl: envConfig.APP_URL, hitoAvisoDias: envConfig.HITO_AVISO_DIAS },
 )
 const siniestroService = new SiniestroService(siniestroRepo, siniestroPolizaProvider)
 const archivoSiniestroService = new ArchivoSiniestroService(
@@ -263,4 +281,9 @@ export const notificacionServicePlugin = new Elysia({
 export const glosarioServicePlugin = new Elysia({ name: '@app/services/glosario' }).decorate(
   'glosarioService',
   glosarioService,
+)
+
+export const hitoServicePlugin = new Elysia({ name: '@app/services/hito' }).decorate(
+  'hitoService',
+  hitoService,
 )

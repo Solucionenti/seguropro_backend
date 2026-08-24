@@ -5,8 +5,7 @@ import { UnauthorizedError } from '@/shared/domain/unauthorized-error'
 import { publicRouter } from '@/shared/routers/public-router'
 import { signedFileQuery } from './schemas'
 
-// serving octet-stream would force a download, so a pdf could never render inline.
-// the key keeps the original extension, which is enough to answer the right type
+// octet-stream would force a download, so a pdf could never render inline
 const CONTENT_TYPE_BY_EXTENSION: Record<string, string> = {
   '.pdf': 'application/pdf',
   '.jpg': 'image/jpeg',

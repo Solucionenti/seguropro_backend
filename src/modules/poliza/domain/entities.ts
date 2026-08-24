@@ -49,6 +49,19 @@ export type CreatePolizaInput = Pick<
   polizaStatus?: PolizaModel['polizaStatus']
 }
 
+export type CreateRenovacionInput = Pick<
+  PolizaModel,
+  | 'companyId'
+  | 'aseguradoraId'
+  | 'ramoId'
+  | 'clienteUserId'
+  | 'primaNeta'
+  | 'primaTotal'
+  | 'polizaAnteriorId'
+> & {
+  creadoPorUserId: string
+}
+
 export type UpdatePolizaInput = Partial<
   Pick<PolizaModel, 'primaNeta' | 'primaTotal' | 'fechaVencimiento' | 'polizaStatus'>
 >

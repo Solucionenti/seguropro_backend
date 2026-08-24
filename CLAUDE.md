@@ -83,6 +83,7 @@ prisma/schema.prisma                 # Single source of truth for models and enu
 | | `POST /api/v1/glosarios`, `PATCH/DELETE /api/v1/glosarios/:id` | `OWNER`, `AGENT` |
 | `poliza` | `GET /api/v1/polizas`, `GET /api/v1/polizas/:id` | `OWNER`, `AGENT`, `CLIENT` (own only) |
 | | `POST /api/v1/polizas`, `PATCH/DELETE /api/v1/polizas/:id` | `OWNER`, `AGENT` |
+| | `POST /api/v1/polizas/:id/renovar` | `OWNER`, `AGENT` |
 | | `GET /api/v1/polizas/mis-polizas`, `GET /api/v1/polizas/mis-polizas/:id` | `CLIENT` |
 | `columna-kanban` | `GET/POST /api/v1/columnas-kanban`, `GET/PATCH/DELETE /api/v1/columnas-kanban/:id` | `OWNER`, `AGENT` |
 | `tarea-kanban` | `GET/POST /api/v1/tareas-kanban`, `GET/PATCH/DELETE /api/v1/tareas-kanban/:id` | `OWNER`, `AGENT` |
@@ -93,7 +94,10 @@ prisma/schema.prisma                 # Single source of truth for models and enu
 | `archivo-siniestro` | `GET /api/v1/siniestros/:id/archivos`, `GET /api/v1/siniestros/:id/archivos/:archivoId` | `OWNER`, `AGENT`, `CLIENT` (own siniestros) |
 | | `POST /api/v1/siniestros/:id/archivos` (multipart), `PATCH/DELETE /api/v1/siniestros/:id/archivos/:archivoId` | `OWNER`, `AGENT` |
 | | `GET /api/v1/files/:storageKey?expires=&signature=` | Public (signed url) |
-| `notificacion` | `POST /api/v1/jobs/notificar-polizas-por-vencer` | Public (`x-job-secret` header) |
+| `hito-siniestro` | `GET /api/v1/siniestros/:id/hitos`, `GET /api/v1/siniestros/:id/hitos/:hitoId` | `OWNER`, `AGENT`, `CLIENT` (own siniestros) |
+| | `POST /api/v1/siniestros/:id/hitos`, `PATCH/DELETE /api/v1/siniestros/:id/hitos/:hitoId` | `OWNER`, `AGENT` |
+| | `GET /api/v1/hitos-alertas` | `OWNER`, `AGENT` |
+| `notificacion` | `POST /api/v1/jobs/notificar-polizas-por-vencer`, `POST /api/v1/jobs/notificar-hitos` | Public (`x-job-secret` header) |
 
 ## Current Prisma Models
 
@@ -110,8 +114,8 @@ Ramo         id, companyId, nombre, descripcion?, active, status, createdAt, upd
              @@unique([companyId, nombre])
 ColumnaKanban id, companyId, nombre, prioridad, status, createdAt, updatedAt
              @@unique([companyId, prioridad]) · physical delete; related task column references are set to NULL
-Poliza       id, companyId, aseguradoraId, ramoId, clienteUserId, numeroPoliza, fechaInicio, fechaVencimiento, primaNeta, primaTotal, polizaStatus, active, status, createdAt, updatedAt
-             @@unique([companyId, numeroPoliza]) · @@index([companyId, clienteUserId])
+Poliza       id, companyId, aseguradoraId, ramoId, clienteUserId, numeroPoliza?, fechaInicio?, fechaVencimiento?, primaNeta, primaTotal, polizaStatus, polizaAnteriorId?, creadoPorUserId?, active, status, createdAt, updatedAt
+             @@unique([companyId, numeroPoliza]) · @@index([companyId, clienteUserId]) · the three nullable ones are required once polizaStatus leaves COTIZACION
 TareaKanban  id, companyId, columnaKanbanId?, polizaId?, titulo, descripcion?, status, createdAt, updatedAt
              physical delete · columnaKanbanId and polizaId are optional
 Siniestro    id, companyId, polizaId, clienteUserId, creadoPorUserId, tipoSiniestro?, fechaEvento, descripcion?, ajustador?, montoEstimado?, montoPagado?, siniestroStatus, active, status, createdAt, updatedAt
@@ -120,13 +124,15 @@ ArchivoPoliza id, polizaId, nombre, mimeType, storageKey, tamanoBytes, active, s
              @@index([polizaId]) · only metadata + storageKey; binaries live in the storage provider
 ArchivoSiniestro id, siniestroId, nombre, mimeType, storageKey, tamanoBytes, active, status, createdAt, updatedAt
              @@index([siniestroId]) · same shape as ArchivoPoliza
+HitoSiniestro id, siniestroId, tarea, descripcion?, fechaLimite, alerta, hitoStatus, asignadoAUserId?, active, status, createdAt, updatedAt
+             @@index([siniestroId]) · @@index([fechaLimite, hitoStatus])
 Glosario     id, companyId, titulo, descripcion, active, status, createdAt, updatedAt
              @@unique([companyId, titulo]) · per-tenant glossary, no global catalog
 NotificacionEnviada id, tipo, entidadId, marca, enviadoEn, status, createdAt, updatedAt
              @@unique([tipo, entidadId, marca]) · anti-duplicate log for scheduled jobs
 ```
 
-Enums: `UserRole` (MASTER_ADMIN, OWNER, AGENT, CLIENT) · `ResourceStatus` (ACTIVE, INACTIVE, DELETED) · `TipoPersona` (FISICA, MORAL) · `Periodicidad` (MENSUAL, TRIMESTRAL, SEMESTRAL, ANUAL) · `SuscripcionStatus` (TRIAL, ACTIVA, CANCELADA, VENCIDA, SUSPENDIDA) · `OrdenStatus` (PENDIENTE, PAGADA, FALLIDA, CANCELADA) · `PolizaStatus` (COTIZACION, VIGENTE, PROXIMA_A_VENCER, VENCIDA, CANCELADA, RENOVADA) · `SiniestroStatus` (REPORTADO, EN_REVISION, APROBADO, RECHAZADO, PAGADO, CERRADO) · `NotificacionTipo` (POLIZA_POR_VENCER, HITO_ALERTA)
+Enums: `UserRole` (MASTER_ADMIN, OWNER, AGENT, CLIENT) · `ResourceStatus` (ACTIVE, INACTIVE, DELETED) · `TipoPersona` (FISICA, MORAL) · `Periodicidad` (MENSUAL, TRIMESTRAL, SEMESTRAL, ANUAL) · `SuscripcionStatus` (TRIAL, ACTIVA, CANCELADA, VENCIDA, SUSPENDIDA) · `OrdenStatus` (PENDIENTE, PAGADA, FALLIDA, CANCELADA) · `PolizaStatus` (COTIZACION, VIGENTE, PROXIMA_A_VENCER, VENCIDA, CANCELADA, RENOVADA) · `SiniestroStatus` (REPORTADO, EN_REVISION, APROBADO, RECHAZADO, PAGADO, CERRADO) · `NotificacionTipo` (POLIZA_POR_VENCER, HITO_ALERTA) · `HitoStatus` (PENDIENTE, EN_PROCESO, COMPLETADO, VENCIDO, CANCELADO)
 
 ## Environment Variables
 
@@ -150,6 +156,7 @@ Enums: `UserRole` (MASTER_ADMIN, OWNER, AGENT, CLIENT) · `ResourceStatus` (ACTI
 | `STORAGE_SIGNED_URL_TTL_SECONDS` | `900` | Signed file url lifetime |
 | `STORAGE_MAX_FILE_SIZE_MB` | `10` | Per-file upload cap |
 | `JOB_SECRET` | required (≥32 chars) | Secret the external scheduler sends in `x-job-secret` |
+| `HITO_AVISO_DIAS` | `3,1` | Days of notice for upcoming hitos; overdue and due-today always notify |
 | `S3_BUCKET` | — | Required when `STORAGE_DRIVER=s3` |
 | `S3_ENDPOINT` | — | Account-level S3 endpoint, required when driver is `s3` |
 | `S3_ACCESS_KEY_ID` | — | Required when `STORAGE_DRIVER=s3` |
@@ -342,12 +349,33 @@ NEVER hand-compute `skip`/`take` or hardcode `orderBy: { createdAt: 'desc' }` �
 - CLIENT is read-only: it reaches `GET /glosarios` and `GET /glosarios/:id` but gets 403 on write. OWNER and AGENT have full CRUD.
 - Soft delete only. A deactivated term disappears from the listing and its detail answers 404, per RF-GLO-05.
 
+### Hitos de Siniestro
+- The field names follow the **entity catalog**, which is the field-level authority when it disagrees with the RF text: `tarea` (not `titulo`), `asignadoAUserId` (not `responsableUserId`), `fechaLimite` **required**, plus an `alerta` boolean the notification job watches. The RF section says otherwise — do not "fix" the names back.
+- `fechaLimite` cannot be in the past on create.
+- `asignadoAUserId` must be an active OWNER or AGENT of the same company; a CLIENT is rejected with 400.
+- `siniestroId` is immutable. Everything is scoped through the siniestro, and a foreign one answers `NotFoundError`, never `ForbiddenError`.
+- CLIENT is read-only and only reaches hitos of their own siniestros.
+- Nested as `/siniestros/:id/hitos/:hitoId`; the owner segment MUST stay `:id`.
+
+### Alert Panel and Hito Notices
+- `GET /hitos-alertas` derives `severidad` (VENCIDO, HOY, PROXIMO) and `diasRestantes` from `fechaLimite` on **every read**. Severity is NEVER stored, so the panel cannot drift from the clock and no job has to backfill it.
+- Because severity is derived it cannot be filtered or sorted in SQL: the repository orders by `fechaLimite asc` (which already puts overdue first) and filters severity in memory, paginating **after** so `total` matches what the caller sees.
+- `POST /jobs/notificar-hitos` mails the assignee and the company OWNER, deduplicated. Only hitos with `alerta = true` and an open status qualify.
+- The notice thresholds reuse `NotificacionEnviada`: `marca` is `VENCIDO`, `HOY` or `PROXIMO-<n>`, so each milestone fires exactly once over a hito's life. Overdue and due-today always notify; upcoming only on a day listed in `HITO_AVISO_DIAS`.
+
+### Poliza Renewal
+- `POST /polizas/:id/renovar` creates a new poliza in `COTIZACION` with `polizaAnteriorId` pointing at the origin, copying aseguradora, ramo, cliente and **both primas**. The spec allows copying or nulling the primas; copying keeps `numeroPoliza`, `fechaInicio` and `fechaVencimiento` as the only nullable ones and leaves the create contract untouched.
+- A poliza can only be renewed once while its renewal is active.
+- `numeroPoliza`, `fechaInicio` and `fechaVencimiento` are nullable in the DB but **required to leave `COTIZACION`** — `PolizaService.update` enforces it, so a quote cannot be emitted half filled.
+- A siniestro cannot be filed against a poliza with no coverage window, so a quote rejects it with 400.
+- `creadoPorUserId` is nullable, unlike the catalog which marks it required: existing rows predate the column and backfilling it would invent data. It is populated on every renewal from the JWT.
+
 ### Requirements Files
 - `reqs_overview.md` — sections 1-2 of the spec: scope and the **entity catalog** with field-level tables.
-- `reqs_done.md` (87 RF) and `reqs_pending.md` (9 RF) — the requirements themselves, split by implementation status.
+- `reqs_done.md` (96 RF, all of them) and `reqs_pending.md` (empty) — the requirements themselves, split by implementation status.
 - The entity catalog and the RF sections DISAGREE in places. When they do, treat the entity catalog as the field-level authority and the RF as the flow authority, and flag it here.
 - Known contradictions:
-  - **Hito Siniestro**: the catalog says `tarea`, `fechaLimite` (mandatory), `asignadoAUserId`, plus an `alerta` boolean and `status` enum `(PENDIENTE, EN_PROCESO, COMPLETADO, VENCIDO, CANCELADO)`. RF-HITO-02 instead says `titulo`, `fechaLimite` (optional), `responsableUserId`, and never mentions `alerta`. Resolve this BEFORE building the module.
+  - **Hito Siniestro**: the catalog says `tarea`, `fechaLimite` (mandatory), `asignadoAUserId`, plus an `alerta` boolean and `status` enum `(PENDIENTE, EN_PROCESO, COMPLETADO, VENCIDO, CANCELADO)`. RF-HITO-02 instead says `titulo`, `fechaLimite` (optional), `responsableUserId`, and never mentions `alerta`. RESOLVED in favour of the catalog: the module uses `tarea`, `asignadoAUserId`, required `fechaLimite` and `alerta`.
   - **Ramo**: the catalog models it as a `Poliza` field, `enum(AUTO, VIDA, HOGAR, NEGOCIO, OTRO)`. There is NO RF for Ramo at all. This codebase implements it as a full entity with its own table and `/ramos` CRUD, and `Poliza.ramoId` as an FK. Do not "align" this without a decision: the module is in use.
 - `RF-POL-01` appears three times verbatim in the source doc and `RF-POL-02` / `RF-POL-03` do not exist. Creating and reading a poliza are implemented but have no written requirement. The duplicates were dropped when splitting.
 

@@ -15,10 +15,7 @@ export class PrismaPolizaVencimientoProvider implements PolizaVencimientoProvide
   async findPorVencer(hoy: Date): Promise<PolizaPorVencer[]> {
     const inicioHoy = aMedianocheUtc(hoy)
 
-    // thresholds are per company, so the window cannot be a single SQL range. postgres
-    // cannot MAX an int[] either, so read the configured days (one row per tenant, small)
-    // and widen the query to the largest horizon, then match each poliza against its own
-    // company thresholds in memory
+    // postgres cannot MAX an int[], so widen to the largest horizon and match in memory
     const empresas = await this.prisma.company.findMany({
       where: { status: ResourceStatus.ACTIVE },
       select: { avisoVencimientoDias: true },
@@ -35,7 +32,7 @@ export class PrismaPolizaVencimientoProvider implements PolizaVencimientoProvide
           gte: new Date(inicioHoy),
           lte: new Date(inicioHoy + horizonte * MS_POR_DIA),
         },
-        // RF-POL-NOTIF-01: no notices for a company without an active subscription
+        // no notices without an active subscription
         company: {
           status: ResourceStatus.ACTIVE,
           suscripciones: {
@@ -73,6 +70,8 @@ export class PrismaPolizaVencimientoProvider implements PolizaVencimientoProvide
       const owner = poliza.company.users[0]
       // an orphaned company has nobody to notify
       if (!owner) continue
+      // a quote has no numero nor dates yet
+      if (!poliza.fechaVencimiento || !poliza.numeroPoliza) continue
 
       const diasRestantes = Math.round(
         (aMedianocheUtc(poliza.fechaVencimiento) - inicioHoy) / MS_POR_DIA,

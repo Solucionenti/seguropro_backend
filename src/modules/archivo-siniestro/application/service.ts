@@ -87,8 +87,7 @@ export class ArchivoSiniestroService implements IArchivoSiniestroService {
     return this.toView(await this.repo.update(id, { nombre }))
   }
 
-  // the row survives for traceability even if the siniestro is deactivated, so the
-  // binary is left in the storage too
+  // the row survives for traceability, so the binary stays in the storage
   async softDelete(id: string, scope: ArchivoSiniestroScope): Promise<void> {
     await this.findOrThrow(id, scope)
     return this.repo.softDelete(id)

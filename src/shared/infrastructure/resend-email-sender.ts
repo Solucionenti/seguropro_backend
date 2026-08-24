@@ -2,9 +2,11 @@ import { render } from '@react-email/render'
 import { AppError } from '@/shared/domain/app-error'
 import type {
   EmailSender,
+  HitoAlertaEmailInput,
   PasswordResetEmailInput,
   PolizaPorVencerEmailInput,
 } from '@/shared/domain/email-sender'
+import { HitoAlertaEmail } from './emails/hito-alerta-email'
 import { PasswordResetEmail } from './emails/password-reset-email'
 import { PolizaPorVencerEmail } from './emails/poliza-por-vencer-email'
 
@@ -24,6 +26,15 @@ export class ResendEmailSender implements EmailSender {
   async sendPolizaPorVencer({ to, ...props }: PolizaPorVencerEmailInput): Promise<void> {
     const html = await render(PolizaPorVencerEmail(props))
     await this.send(to, `La poliza ${props.numeroPoliza} esta por vencer`, html)
+  }
+
+  async sendHitoAlerta({ to, ...props }: HitoAlertaEmailInput): Promise<void> {
+    const html = await render(HitoAlertaEmail(props))
+    const asunto =
+      props.severidad === 'VENCIDO'
+        ? `Hito vencido: ${props.tarea}`
+        : `Hito por vencer: ${props.tarea}`
+    await this.send(to, asunto, html)
   }
 
   // sent synchronously inside the request, move to a queue if latency becomes a problem

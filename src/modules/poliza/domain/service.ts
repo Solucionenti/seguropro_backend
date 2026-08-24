@@ -31,10 +31,17 @@ export interface UpdatePolizaServiceInput {
   polizaStatus?: PolizaStatus
 }
 
+export interface CrearRenovacionServiceInput {
+  polizaOrigenId: string
+  companyId: string
+  creadoPorUserId: string
+}
+
 export interface IPolizaService {
   list(pageable: Pageable, filters: ListPolizasFilters): Promise<Page<PolizaWithDetails>>
   create(input: CreatePolizaServiceInput): Promise<PolizaWithDetails>
   getById(id: string, companyId: string, clienteUserId?: string): Promise<PolizaWithDetails>
   update(id: string, companyId: string, input: UpdatePolizaServiceInput): Promise<PolizaWithDetails>
   softDelete(id: string, companyId: string): Promise<void>
+  crearRenovacion(input: CrearRenovacionServiceInput): Promise<PolizaWithDetails>
 }

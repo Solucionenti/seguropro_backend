@@ -1,6 +1,10 @@
 import { beforeEach, describe, expect, it, mock } from 'bun:test'
 import { NotificacionService } from '@/modules/notificacion/application/service'
 import type { PolizaPorVencer } from '@/modules/notificacion/domain/entities'
+import type {
+  HitoAlertaProvider,
+  HitoParaNotificar,
+} from '@/modules/notificacion/domain/hito-alerta-provider'
 import type { PolizaVencimientoProvider } from '@/modules/notificacion/domain/poliza-vencimiento-provider'
 import type { NotificacionRepository } from '@/modules/notificacion/domain/repository'
 import type { EmailSender } from '@/shared/domain/email-sender'
@@ -35,8 +39,12 @@ function createMocks() {
   const emailSender: Mocked<EmailSender> = {
     sendPasswordReset: mock(() => Promise.resolve()),
     sendPolizaPorVencer: mock(() => Promise.resolve()),
+    sendHitoAlerta: mock(() => Promise.resolve()),
   }
-  return { polizaProvider, repo, emailSender }
+  const hitoProvider: Mocked<HitoAlertaProvider> = {
+    findParaNotificar: mock(() => Promise.resolve([] as HitoParaNotificar[])),
+  }
+  return { polizaProvider, hitoProvider, repo, emailSender }
 }
 
 describe('NotificacionService', () => {
@@ -45,9 +53,13 @@ describe('NotificacionService', () => {
 
   beforeEach(() => {
     mocks = createMocks()
-    service = new NotificacionService(mocks.polizaProvider, mocks.repo, mocks.emailSender, {
-      appUrl: 'https://app.test',
-    })
+    service = new NotificacionService(
+      mocks.polizaProvider,
+      mocks.hitoProvider,
+      mocks.repo,
+      mocks.emailSender,
+      { appUrl: 'https://app.test', hitoAvisoDias: [3, 1] },
+    )
   })
 
   it('should do nothing when no poliza reaches a threshold', async () => {
@@ -78,7 +90,6 @@ describe('NotificacionService', () => {
     expect(resumen.notificadas).toBe(1)
   })
 
-  // RF-POL-NOTIF-01: "evitar duplicidad: no enviar el mismo correo multiples veces"
   it('should not resend when the threshold was already recorded', async () => {
     mocks.polizaProvider.findPorVencer.mockResolvedValue([createPoliza()])
     mocks.repo.registrarSiEsNueva.mockResolvedValue(false)

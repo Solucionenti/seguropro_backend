@@ -1,7 +1,6 @@
 import { z } from 'zod'
 
-// the siniestro segment must stay `:id`: elysia requires the same param name at the
-// same position and siniestroController already registers /siniestros/:id
+// must stay `:id`: elysia demands the same param name at the same position
 export const siniestroScopeParams = z.object({
   id: z.string().uuid('Invalid siniestro ID format'),
 })

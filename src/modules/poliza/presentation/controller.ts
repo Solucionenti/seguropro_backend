@@ -165,6 +165,29 @@ export const polizaController = new Elysia({
     },
   )
 
+  .post(
+    '/:id/renovar',
+    async ({ params, companyId, userId, polizaService, jsonOk }) => {
+      const renovacion = await polizaService.crearRenovacion({
+        polizaOrigenId: params.id,
+        companyId,
+        creadoPorUserId: userId,
+      })
+      return jsonOk(renovacion, 'Renovacion created successfully')
+    },
+    {
+      params: idParams,
+      requireCompany: true,
+      withRole: [UserRole.OWNER, UserRole.AGENT],
+      detail: {
+        tags: ['Polizas'],
+        summary: 'Create a renewal from an existing poliza',
+        description:
+          'Creates a new poliza in COTIZACION status linked to the origin through polizaAnteriorId, copying aseguradora, ramo, cliente and both primas. numeroPoliza, fechaInicio and fechaVencimiento start empty and must be filled before the quote can leave COTIZACION. A poliza can only be renewed once while its renewal is active.',
+      },
+    },
+  )
+
   .delete(
     '/:id',
     async ({ params, companyId, polizaService, jsonOkNoData }) => {

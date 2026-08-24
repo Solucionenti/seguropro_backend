@@ -39,6 +39,12 @@ export class SiniestroService implements ISiniestroService {
     if (input.fechaEvento > new Date()) {
       throw new ValidationError('fechaEvento cannot be in the future')
     }
+    // a COTIZACION has no coverage window yet, so there is nothing to claim against
+    if (!poliza.fechaInicio || !poliza.fechaVencimiento) {
+      throw new ValidationError(
+        'Poliza has no coverage period yet: a siniestro cannot be filed against a quote',
+      )
+    }
     if (input.fechaEvento < poliza.fechaInicio || input.fechaEvento > poliza.fechaVencimiento) {
       throw new ValidationError(
         'fechaEvento must fall within the poliza coverage period (fechaInicio..fechaVencimiento)',

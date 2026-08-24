@@ -343,7 +343,6 @@ describe('UserService', () => {
       expect(service.deleteOwner('user-1')).rejects.toBeInstanceOf(NotFoundError)
     })
 
-    // RF-OWNER-05: an active company cannot be left without an active OWNER
     it('should refuse to deactivate the last active OWNER of an active company', async () => {
       mocks.repo.findById.mockResolvedValue(
         createMockUser({ role: UserRole.OWNER, companyId: 'company-1' }),

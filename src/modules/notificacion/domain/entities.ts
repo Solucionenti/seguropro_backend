@@ -7,7 +7,7 @@ export interface PolizaPorVencer {
   clienteNombre: string
   ownerEmail: string
   ownerFirstName: string
-  /// dias configurados por la empresa que este vencimiento alcanza
+  /// the company-configured day this expiry landed on
   umbralDias: number
   diasRestantes: number
 }

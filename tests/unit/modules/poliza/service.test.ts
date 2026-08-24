@@ -67,6 +67,8 @@ function createMocks() {
     create: mock(() => Promise.resolve(createMockPoliza())),
     update: mock(() => Promise.resolve(createMockPoliza())),
     softDelete: mock(() => Promise.resolve()),
+    createRenovacion: mock(() => Promise.resolve(createMockPoliza())),
+    findRenovacionActiva: mock(() => Promise.resolve(null)),
   }
   const aseguradoraProvider: Mocked<AseguradoraProvider> = {
     findActiveByIdForCompany: mock(() => Promise.resolve(aseguradoraStub)),
@@ -270,6 +272,93 @@ describe('PolizaService', () => {
     it('should throw NotFoundError when missing', async () => {
       expect(service.softDelete('missing', 'company-1')).rejects.toThrow(NotFoundError)
       expect(mocks.repo.softDelete).not.toHaveBeenCalled()
+    })
+  })
+
+  describe('crearRenovacion', () => {
+    const baseInput = {
+      polizaOrigenId: 'poliza-1',
+      companyId: 'company-1',
+      creadoPorUserId: 'user-agent-1',
+    }
+
+    it('should create the renewal linked to the origin', async () => {
+      mocks.repo.findById.mockResolvedValue(createMockPoliza())
+
+      await service.crearRenovacion(baseInput)
+
+      expect(mocks.repo.createRenovacion.mock.calls[0]?.[0]).toMatchObject({
+        companyId: 'company-1',
+        polizaAnteriorId: 'poliza-1',
+        creadoPorUserId: 'user-agent-1',
+      })
+    })
+
+    it('should copy aseguradora, ramo, cliente and both primas', async () => {
+      mocks.repo.findById.mockResolvedValue(createMockPoliza())
+
+      await service.crearRenovacion(baseInput)
+
+      expect(mocks.repo.createRenovacion.mock.calls[0]?.[0]).toMatchObject({
+        aseguradoraId: 'aseg-1',
+        ramoId: 'ramo-1',
+        clienteUserId: 'user-cliente-1',
+        primaNeta: 1000,
+        primaTotal: 1160,
+      })
+    })
+
+    it('should never carry over numeroPoliza nor the dates', async () => {
+      mocks.repo.findById.mockResolvedValue(createMockPoliza())
+
+      await service.crearRenovacion(baseInput)
+
+      const enviado = mocks.repo.createRenovacion.mock.calls[0]?.[0]
+      expect(enviado).not.toHaveProperty('numeroPoliza')
+      expect(enviado).not.toHaveProperty('fechaInicio')
+      expect(enviado).not.toHaveProperty('fechaVencimiento')
+    })
+
+    it('should refuse a second renewal while one is active', async () => {
+      mocks.repo.findById.mockResolvedValue(createMockPoliza())
+      mocks.repo.findRenovacionActiva.mockResolvedValue(createMockPoliza({ id: 'poliza-2' }))
+
+      await expect(service.crearRenovacion(baseInput)).rejects.toThrow(ValidationError)
+      expect(mocks.repo.createRenovacion).not.toHaveBeenCalled()
+    })
+
+    it('should not renew a poliza from another company', async () => {
+      await expect(
+        service.crearRenovacion({ ...baseInput, companyId: 'other-company' }),
+      ).rejects.toThrow(NotFoundError)
+      expect(mocks.repo.createRenovacion).not.toHaveBeenCalled()
+    })
+  })
+
+  describe('leaving COTIZACION', () => {
+    const cotizacion = () =>
+      createMockPoliza({
+        polizaStatus: PolizaStatus.COTIZACION,
+        numeroPoliza: null,
+        fechaInicio: null,
+        fechaVencimiento: null,
+      })
+
+    it('should refuse it without numeroPoliza and dates', async () => {
+      mocks.repo.findById.mockResolvedValue(cotizacion())
+
+      await expect(
+        service.update('poliza-1', 'company-1', { polizaStatus: PolizaStatus.VIGENTE }),
+      ).rejects.toThrow(ValidationError)
+      expect(mocks.repo.update).not.toHaveBeenCalled()
+    })
+
+    it('should allow editing a quote while it stays a quote', async () => {
+      mocks.repo.findById.mockResolvedValue(cotizacion())
+
+      await service.update('poliza-1', 'company-1', { primaTotal: 2000 })
+
+      expect(mocks.repo.update).toHaveBeenCalledTimes(1)
     })
   })
 })

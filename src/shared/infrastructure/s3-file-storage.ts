@@ -11,10 +11,7 @@ interface S3Config {
   ttlSeconds: number
 }
 
-/**
- * works against any s3-compatible provider (r2, backblaze b2, supabase storage, aws)
- * by pointing endpoint somewhere else. uses bun's native S3Client, so no sdk is needed
- */
+// any s3-compatible provider by changing the endpoint; uses bun's native S3Client
 export class S3FileStorage implements FileStorage {
   private readonly client: S3Client
 

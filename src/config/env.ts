@@ -20,6 +20,16 @@ const envSchema = z.object({
   API_URL: z.string().url('API_URL must be a valid URL').default('http://localhost:3000'),
   // the job endpoints are reachable without a jwt, so this secret IS their authorization
   JOB_SECRET: z.string().min(32, 'JOB_SECRET must be at least 32 characters'),
+  // dias de anticipacion para avisar de hitos proximos; vencidos y hoy siempre avisan
+  HITO_AVISO_DIAS: z
+    .string()
+    .default('3,1')
+    .transform((valor) =>
+      valor
+        .split(',')
+        .map((dia) => Number.parseInt(dia.trim(), 10))
+        .filter((dia) => Number.isInteger(dia) && dia > 0),
+    ),
   STORAGE_DRIVER: z.enum(['local', 's3']).default('local'),
   STORAGE_LOCAL_DIR: z.string().min(1).default('./storage'),
   STORAGE_SIGNED_URL_TTL_SECONDS: z.coerce.number().int().min(30).default(900),

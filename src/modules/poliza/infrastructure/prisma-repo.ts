@@ -1,8 +1,13 @@
 import type { Prisma } from '@gen/client'
-import { ResourceStatus } from '@gen/enums'
+import { PolizaStatus, ResourceStatus } from '@gen/enums'
 import type { AppPrismaClient } from '@/config/database'
 import { Page, type Pageable } from '@/shared/domain/pagination'
-import type { CreatePolizaInput, PolizaWithDetails, UpdatePolizaInput } from '../domain/entities'
+import type {
+  CreatePolizaInput,
+  CreateRenovacionInput,
+  PolizaWithDetails,
+  UpdatePolizaInput,
+} from '../domain/entities'
 import type { PolizaFilters, PolizaRepository } from '../domain/repository'
 
 const aseguradoraSelect = {
@@ -101,6 +106,20 @@ export class PrismaPolizaRepository implements PolizaRepository {
         primaTotal: input.primaTotal,
         ...(input.polizaStatus && { polizaStatus: input.polizaStatus }),
       },
+      include: includeDetails,
+    })
+  }
+
+  async createRenovacion(input: CreateRenovacionInput): Promise<PolizaWithDetails> {
+    return this.prisma.poliza.create({
+      data: { ...input, polizaStatus: PolizaStatus.COTIZACION },
+      include: includeDetails,
+    })
+  }
+
+  async findRenovacionActiva(polizaAnteriorId: string): Promise<PolizaWithDetails | null> {
+    return this.prisma.poliza.findFirst({
+      where: { polizaAnteriorId, status: ResourceStatus.ACTIVE, active: true },
       include: includeDetails,
     })
   }

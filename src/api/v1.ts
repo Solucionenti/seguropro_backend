@@ -8,6 +8,8 @@ import { columnaKanbanController } from '@/modules/columna-kanban/presentation/c
 import { companyController } from '@/modules/company/presentation/controller'
 import { glosarioController } from '@/modules/glosario/presentation/controller'
 import { healthController } from '@/modules/health/presentation/controller'
+import { alertaController } from '@/modules/hito-siniestro/presentation/alerta-controller'
+import { hitoController } from '@/modules/hito-siniestro/presentation/controller'
 import { jobController } from '@/modules/notificacion/presentation/controller'
 import { ordenController } from '@/modules/orden/presentation/controller'
 import { planController } from '@/modules/plan/presentation/controller'
@@ -37,5 +39,7 @@ export const v1 = new Elysia({ name: '@app/api/v1', prefix: '/api/v1' })
   .use(siniestroController)
   .use(archivoPolizaController)
   .use(archivoSiniestroController)
+  .use(hitoController)
+  .use(alertaController)
   .use(fileController)
   .use(jobController)

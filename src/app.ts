@@ -6,8 +6,7 @@ import { v1 } from '@/api/v1'
 import { envConfig } from '@/config/env'
 import { errorHandler } from '@/shared/middleware/error-handler'
 
-// rejected at the transport layer, before an oversized upload is buffered in memory.
-// the per-file business cap lives in ArchivoPolizaService and is necessarily lower
+// cut at the transport layer, before an oversized upload is buffered in memory
 const MAX_REQUEST_BODY_BYTES = Math.ceil(envConfig.STORAGE_MAX_FILE_SIZE_MB * 1.5) * 1024 * 1024
 
 export const app = new Elysia({

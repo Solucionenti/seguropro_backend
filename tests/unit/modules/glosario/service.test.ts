@@ -68,7 +68,6 @@ describe('GlosarioService', () => {
       expect(mocks.repo.create).toHaveBeenCalledWith(baseCreateInput)
     })
 
-    // RF-GLO-02: UNIQUE (empresaId, titulo)
     it('should reject a titulo already used in the same company', async () => {
       mocks.repo.findByTituloAndCompany.mockResolvedValue(createMockGlosario())
 

@@ -67,7 +67,7 @@ model Company {
   pais             String?
   estado           String?
 
-  /// dias de anticipacion para avisar de polizas por vencer (RF-POL-NOTIF-01)
+  /// days of notice before a poliza expires
   avisoVencimientoDias Int[] @default([30, 15, 7])
 
   status    ResourceStatus @default(ACTIVE)
@@ -107,8 +107,10 @@ model User {
   polizasComoCliente Poliza[]        @relation("PolizaCliente")
   detalleCliente     DetalleCliente?
 
-  siniestrosComoCliente Siniestro[] @relation("SiniestroCliente")
-  siniestrosCreados     Siniestro[] @relation("SiniestroCreadoPor")
+  siniestrosComoCliente Siniestro[]     @relation("SiniestroCliente")
+  siniestrosCreados     Siniestro[]     @relation("SiniestroCreadoPor")
+  hitosAsignados        HitoSiniestro[] @relation("HitoAsignado")
+  polizasCreadas        Poliza[]        @relation("PolizaCreadoPor")
 
   @@unique([companyId, email], name: "company_email_unique")
   @@map("users")
@@ -240,25 +242,31 @@ model Poliza {
   aseguradoraId    String
   ramoId           String
   clienteUserId    String
-  numeroPoliza     String
-  fechaInicio      DateTime
-  fechaVencimiento DateTime
+  /// required only once polizaStatus leaves COTIZACION
+  numeroPoliza     String?
+  fechaInicio      DateTime?
+  fechaVencimiento DateTime?
   primaNeta        Float
   primaTotal       Float
   polizaStatus     PolizaStatus @default(VIGENTE)
+  polizaAnteriorId String?
+  creadoPorUserId  String?
   active           Boolean      @default(true)
 
   status    ResourceStatus @default(ACTIVE)
   createdAt DateTime       @default(now())
   updatedAt DateTime       @updatedAt
 
-  company      Company         @relation(fields: [companyId], references: [id])
-  aseguradora  Aseguradora     @relation(fields: [aseguradoraId], references: [id])
-  ramo         Ramo            @relation(fields: [ramoId], references: [id])
-  cliente      User            @relation("PolizaCliente", fields: [clienteUserId], references: [id])
-  tareasKanban TareaKanban[]
-  siniestros   Siniestro[]
-  archivos     ArchivoPoliza[]
+  company        Company         @relation(fields: [companyId], references: [id])
+  aseguradora    Aseguradora     @relation(fields: [aseguradoraId], references: [id])
+  ramo           Ramo            @relation(fields: [ramoId], references: [id])
+  cliente        User            @relation("PolizaCliente", fields: [clienteUserId], references: [id])
+  tareasKanban   TareaKanban[]
+  siniestros     Siniestro[]
+  archivos       ArchivoPoliza[]
+  polizaAnterior Poliza?         @relation("PolizaRenovacion", fields: [polizaAnteriorId], references: [id])
+  renovaciones   Poliza[]        @relation("PolizaRenovacion")
+  creadoPor      User?           @relation("PolizaCreadoPor", fields: [creadoPorUserId], references: [id])
 
   @@unique([companyId, numeroPoliza], name: "poliza_company_numero_unique")
   @@index([companyId, clienteUserId])
@@ -340,6 +348,7 @@ model Siniestro {
   cliente   User               @relation("SiniestroCliente", fields: [clienteUserId], references: [id])
   creadoPor User               @relation("SiniestroCreadoPor", fields: [creadoPorUserId], references: [id])
   archivos  ArchivoSiniestro[]
+  hitos     HitoSiniestro[]
 
   @@index([companyId, polizaId])
   @@index([companyId, clienteUserId])
@@ -389,9 +398,7 @@ enum NotificacionTipo {
   HITO_ALERTA
 }
 
-/// bitacora y anti-duplicado de envios automaticos. `marca` distingue el umbral
-/// concreto ("30", "15", "7" para polizas; "PROXIMO"/"HOY"/"VENCIDO" para hitos)
-/// para que un reintento del scheduler no reenvie el mismo aviso
+/// sent-notice log; `marca` is the threshold reached, so a retry never resends
 model NotificacionEnviada {
   id        String           @id @default(uuid())
   tipo      NotificacionTipo
@@ -423,4 +430,36 @@ model Glosario {
 
   @@unique([companyId, titulo], name: "glosario_company_titulo_unique")
   @@map("glosarios")
+}
+
+enum HitoStatus {
+  PENDIENTE
+  EN_PROCESO
+  COMPLETADO
+  VENCIDO
+  CANCELADO
+}
+
+/// critical task with a deadline inside a siniestro
+model HitoSiniestro {
+  id              String     @id @default(uuid())
+  siniestroId     String
+  tarea           String
+  descripcion     String?
+  fechaLimite     DateTime
+  alerta          Boolean    @default(true)
+  hitoStatus      HitoStatus @default(PENDIENTE)
+  asignadoAUserId String?
+  active          Boolean    @default(true)
+
+  status    ResourceStatus @default(ACTIVE)
+  createdAt DateTime       @default(now())
+  updatedAt DateTime       @updatedAt
+
+  siniestro Siniestro @relation(fields: [siniestroId], references: [id])
+  asignadoA User?     @relation("HitoAsignado", fields: [asignadoAUserId], references: [id])
+
+  @@index([siniestroId])
+  @@index([fechaLimite, hitoStatus])
+  @@map("hitos_siniestros")
 }

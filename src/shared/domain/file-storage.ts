@@ -9,11 +9,7 @@ export interface StoredFile {
   sizeBytes: number
 }
 
-/**
- * only the storageKey is persisted, never a url: signed urls expire, so the url is
- * derived on read. swapping local disk for an s3-compatible provider (r2, b2,
- * supabase, aws) means writing one more adapter, nothing above this port changes
- */
+// only the storageKey is persisted: signed urls expire, so the url is derived on read
 export interface FileStorage {
   upload(input: UploadFileInput): Promise<StoredFile>
   signedUrl(storageKey: string): Promise<string>

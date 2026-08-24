@@ -1,16 +1,20 @@
 import type { EmailSender } from '@/shared/domain/email-sender'
 import type { NotificacionResumen } from '../domain/entities'
+import type { HitoAlertaProvider } from '../domain/hito-alerta-provider'
 import type { PolizaVencimientoProvider } from '../domain/poliza-vencimiento-provider'
 import type { NotificacionRepository } from '../domain/repository'
 import type { INotificacionService } from '../domain/service'
 
 interface NotificacionConfig {
   appUrl: string
+  /// days of notice for upcoming hitos
+  hitoAvisoDias: number[]
 }
 
 export class NotificacionService implements INotificacionService {
   constructor(
     private readonly polizaProvider: PolizaVencimientoProvider,
+    private readonly hitoProvider: HitoAlertaProvider,
     private readonly repo: NotificacionRepository,
     private readonly emailSender: EmailSender,
     private readonly config: NotificacionConfig,
@@ -27,9 +31,7 @@ export class NotificacionService implements INotificacionService {
     }
 
     for (const poliza of polizas) {
-      // reserve the (poliza, umbral) pair first: if the send later fails the row stays
-      // and the notice is not retried, which is the tradeoff the spec asks for by
-      // demanding no duplicates
+      // reserved before sending: a failed send is not retried, never double-sent
       const esNueva = await this.repo.registrarSiEsNueva(
         'POLIZA_POR_VENCER',
         poliza.id,
@@ -57,6 +59,51 @@ export class NotificacionService implements INotificacionService {
       } catch (error) {
         // one bad address must not stop the whole run
         console.error(`Failed to notify poliza ${poliza.id}:`, error)
+        resumen.fallidas++
+      }
+    }
+
+    return resumen
+  }
+
+  async notificarHitos(hoy: Date): Promise<NotificacionResumen> {
+    const hitos = await this.hitoProvider.findParaNotificar(hoy, this.config.hitoAvisoDias)
+
+    const resumen: NotificacionResumen = {
+      revisadas: hitos.length,
+      notificadas: 0,
+      omitidasPorDuplicado: 0,
+      fallidas: 0,
+    }
+
+    for (const hito of hitos) {
+      // reserved before sending, same tradeoff as the poliza job
+      const esNueva = await this.repo.registrarSiEsNueva('HITO_ALERTA', hito.id, hito.marca)
+
+      if (!esNueva) {
+        resumen.omitidasPorDuplicado++
+        continue
+      }
+
+      try {
+        await Promise.all(
+          hito.destinatarios.map((destinatario) =>
+            this.emailSender.sendHitoAlerta({
+              to: destinatario.email,
+              firstName: destinatario.firstName,
+              tarea: hito.tarea,
+              fechaLimite: hito.fechaLimite,
+              severidad: hito.severidad,
+              diasRestantes: hito.diasRestantes,
+              numeroPoliza: hito.numeroPoliza,
+              clienteNombre: hito.clienteNombre,
+              detalleUrl: `${this.config.appUrl}/siniestros/${hito.siniestroId}`,
+            }),
+          ),
+        )
+        resumen.notificadas++
+      } catch (error) {
+        console.error(`Failed to notify hito ${hito.id}:`, error)
         resumen.fallidas++
       }
     }
