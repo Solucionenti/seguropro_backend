@@ -4,7 +4,8 @@ Everything in this repo is already wired for Railway. What is left is the dashbo
 
 - Which branch goes where? See [Environments and branches](#environments-and-branches).
 - Just showing a demo? Go to [Demo environment](#demo-environment--the-short-path).
-- Setting up the real thing? Go to [Dashboard checklist](#dashboard-checklist).
+- Setting up the real thing? Go to [Infrastructure as Code](#infrastructure-as-code), then
+  [What still needs the dashboard](#what-still-needs-the-dashboard).
 
 ## Shape of the deployment
 
@@ -13,11 +14,11 @@ One Railway **project**, with the same three services in each environment:
 | Service | Source | What it does |
 |---------|--------|--------------|
 | `Postgres` | Railway database template | Managed PostgreSQL. Provides `DATABASE_URL`. |
-| `segur-api` | this repo, config `railway.json` | The Elysia API. Public domain, healthcheck, migrations on deploy. |
-| `segur-jobs` | this repo, config `railway.jobs.json` | Cron service. Posts the `/api/v1/jobs/*` endpoints once a day and exits. |
+| `segur-api` | this repo, via `.railway/railway.ts` | The Elysia API. Public domain, healthcheck, migrations on deploy. |
+| `segur-jobs` | this repo, via `.railway/railway.ts` | Cron service. Posts the `/api/v1/jobs/*` endpoints once a day and exits. |
 
-`segur-api` and `segur-jobs` deploy from the **same repository and the same commit**. They only
-differ in the config-as-code file each one points at.
+`segur-api` and `segur-jobs` deploy from the **same repository and the same commit**, both
+declared in `.railway/railway.ts`. They differ only in start command and cron schedule.
 
 ## Environments and branches
 
@@ -26,14 +27,16 @@ differ in the config-as-code file each one points at.
 | `production` (Railway's default) | `main` | Production. **Not set up yet** — nothing deploys here today. | no |
 | `dev` | `dev` | QA and demos. This is the one that is live. | yes |
 
-The environment name in Railway must be exactly `dev`, because `railway.json` keys its override
-block on that name (`environments.dev`). Rename the environment and the override silently stops
-applying.
+The environment name in Railway must be exactly `dev`, because `.railway/railway.ts` looks it up
+in `BRANCH_BY_ENVIRONMENT`. An unmapped name makes the file **throw** rather than fall back, which
+is deliberate: a silent default to `main` would deploy stale code onto a live demo.
 
 What actually differs between them:
 
-- **`SEED_ON_DEPLOY`** is `true` in `dev` and unset in `production`. It is a service variable, not
-  something `railway.json` can carry.
+- **`SEED_ON_DEPLOY`** is `'true'` in `dev` and `'false'` in `production`.
+- **`NODE_ENV`** is `development` in `dev`, `production` in `production`. It is only ever logged,
+  never branched on.
+- **The tracked branch** is `dev` or `main`, resolved in the same ternary.
 - **`overlapSeconds` / `drainingSeconds`** are `0` in `dev` so deploys cut over immediately while
   you iterate. `production` keeps the 20 s overlap and 15 s drain, because it is serving traffic
   that should not be dropped mid-request.
@@ -47,13 +50,114 @@ migrations have already moved forward.
 CI (`.github/workflows/ci.yml`) runs on pushes to both `main` and `dev`, and on every pull request
 regardless of target, so **Wait for CI** has a check suite to gate on in either environment.
 
+## Infrastructure as Code
+
+The whole project — database, services, variables, cron schedule, Wait for CI — is declared in
+**`.railway/railway.ts`**. One file describes every resource in an environment.
+
+This replaces Config as Code (`railway.json` / `railway.toml`), which Railway
+[deprecated](https://docs.railway.com/config-as-code): new services cannot opt into it and
+existing files stop being read on **2026-12-01**. Those two files are gone from this repo; a
+service must not be managed by both systems at once.
+
+### Prerequisite: a current CLI
+
+`railway config` does not exist before CLI v4.6. Check and upgrade first:
+
+```bash
+railway --version
+bun add -g @railway/cli          # or: npm i -g @railway/cli
+```
+
+The `railway` npm package (an exact devDependency here) is what `.railway/railway.ts` imports its
+DSL from, so `bun install` is enough to make the file type-check locally.
+
+### The workflow
+
+```bash
+railway login
+railway link                     # project + environment. IaC applies to the LINKED environment
+railway config plan              # preview the diff. always read this first
+railway config apply             # preview, confirm, apply
+```
+
+`railway config pull` imports the project's current state into the authoring file — useful to see
+Railway's own naming before trusting the constants at the top of the file.
+
+### Read the plan before the first apply
+
+IaC adopts a resource by **name**. A name that does not match something that already exists makes
+it **create** a new resource rather than adopt the existing one, so the first `railway config plan`
+in each environment has to be read carefully. The names to confirm are the constants at the top of
+`.railway/railway.ts`:
+
+```ts
+const PROJECT_FALLBACK = 'profound-balance'
+const DB_SERVICE = 'Postgres'
+const API_SERVICE = 'segur-api'
+const JOBS_SERVICE = 'segur-jobs'
+const FRONT_SERVICE = 'seguropro_front'
+```
+
+The project name comes from `ctx.projectName` when the CLI provides it, and only falls back to the
+constant. The service names are what you actually have to check.
+
+### Environments in one file
+
+There is no per-environment block. The file receives a context and looks the environment up in a
+table, refusing to guess:
+
+```ts
+const BRANCH_BY_ENVIRONMENT: Record<string, string> = {
+  production: 'main',
+  dev: 'dev',
+}
+const SEEDED_ENVIRONMENTS = ['dev']
+```
+
+So `railway link` picking `dev` deploys the `dev` branch, seeds on every deploy and cuts over with
+no drain; picking `production` deploys `main`, does not seed and drains gracefully. Same file. An
+environment name in neither table throws before anything is applied.
+
+### Can the variables just live in the dashboard?
+
+Their **values** can. Their **names** cannot.
+
+An apply reconciles the environment against the file, and omission means deletion: a variable set
+in the dashboard but absent from `.railway/railway.ts` is a deletion candidate. The CLI marks
+destructive changes before asking for confirmation, and non-interactive runs need
+`--confirm-destructive`, so nothing disappears silently — but the intent of the model is that the
+file is the whole picture.
+
+That gives three ways to declare a variable, and the choice is per variable:
+
+| Form | Value lives in | Use it for |
+|------|----------------|------------|
+| `KEY: 'literal'` | the file | non-secret config you want reproducible |
+| `KEY: preserve()` | Railway only | secrets and credentials |
+| `KEY: ctx.shared.KEY` | a project-level Shared Variable | a secret two services must agree on |
+
+`preserve()` is what `railway config pull` writes by default, and it is the answer to "keep it out
+of code": the name is declared so the apply leaves it alone, the value never enters git. The cost
+is that a brand-new environment comes up with that variable **unset** — `JWT_SECRET` and the S3
+credentials have to be set once per environment before the service can boot.
+
+This repo splits it that way on purpose: `NODE_ENV`, the JWT expirations, the pagination limits,
+`HITO_AVISO_DIAS`, `SEED_ON_DEPLOY`, `STORAGE_DRIVER` and `S3_REGION` are literals, because they
+are configuration worth reviewing in a diff. `JWT_SECRET`, `RESEND_API_KEY`, `EMAIL_FROM` and the
+four `S3_*` credentials are `preserve()`. `JOB_SECRET` is `ctx.shared.JOB_SECRET`, so `segur-api`
+and `segur-jobs` structurally cannot drift — a mismatch there makes every job call answer 401.
+
+Going all-`preserve()` is possible and would keep every value out of code, but it also throws away
+the part of IaC that makes an environment reproducible: the file becomes a list of names and a
+fresh environment comes up with nothing set.
+
 ## Files in this repo
 
 | File | Purpose |
 |------|---------|
 | `railpack.json` | Builder config. Pins Bun and lets the Node provider detect the rest. |
-| `railway.json` | Config as code for `segur-api`: builder, watch paths, pre-deploy migration, healthcheck, restart policy. |
-| `railway.jobs.json` | Config as code for `segur-jobs`: start command and cron schedule. |
+| `.railway/railway.ts` | **Infrastructure as Code**: the database, both services, their variables, cron schedule and Wait for CI. The single source of truth. |
 | `scripts/deploy-prepare.ts` | The pre-deploy entrypoint: `prisma migrate deploy`, then the seed if `SEED_ON_DEPLOY=true`. |
 | `scripts/run-scheduled-jobs.ts` | The cron entrypoint. Standalone — needs only a url and `JOB_SECRET`. |
 | `.railwayignore` | Keeps docs and CI files out of the build context. |
@@ -122,12 +226,16 @@ So for a demo, either:
 Nothing else in the API depends on email, so an unverified account still lets you demo every other
 flow — the send just fails and is counted in `fallidas` in the job summary.
 
-### Files, without signing up for anything
+### Files go to Cloudflare R2
 
-**Settings → Volumes → Add Volume**, mount path `/app/storage`, then set
-`STORAGE_LOCAL_DIR=/app/storage` and keep `STORAGE_DRIVER=local`. Also set `RAILWAY_RUN_UID=0`: a
-container running as a non-root uid cannot write into a mounted volume. A volume rules out
-replicas, which is fine at `numReplicas: 1`.
+`STORAGE_DRIVER=s3` with an R2 bucket. R2 has a free tier, needs no volume, and survives a deploy,
+which the container filesystem does not. Set `S3_BUCKET`, `S3_ENDPOINT` (the account-level R2
+endpoint), `S3_ACCESS_KEY_ID` and `S3_SECRET_ACCESS_KEY`; `S3_REGION` stays `auto` for R2.
+
+`env.ts` refuses to boot when the driver is `s3` and any of the four is missing, so a
+misconfigured deploy fails immediately instead of at the first upload. A Railway Volume with the
+`local` driver is the alternative, but it rules out replicas and adds nothing R2 does not already
+give you.
 
 ### Seed the demo data
 
@@ -166,96 +274,55 @@ curl -X POST "https://<your-domain>/api/v1/jobs/notificar-polizas-por-vencer" -H
 Add `?hoy=YYYY-MM-DD` to replay a date, which is how you demo an expiry notice without waiting for
 a policy to actually approach its `fechaVencimiento`.
 
-## Dashboard checklist
+## What still needs the dashboard
 
-### 1. Create the project and the database
+`.railway/railway.ts` owns the builder, start and pre-deploy commands, healthcheck, restart
+policy, watch paths, cron schedule, Wait for CI and every non-secret variable. Do
+**not** set those by hand — a value typed into the dashboard fights the file.
 
-1. **New Project → Deploy PostgreSQL**. This creates the `Postgres` service.
-2. **Project Settings → Environments → New Environment**, named exactly `dev`. That name is what
-   `environments.dev` in `railway.json` keys on. Railway's built-in `production` environment is
-   the one that will eventually track `main`.
-3. In the same project, **New → GitHub Repo → `segur-back`**. Name the service `segur-api`.
+Four things IaC does not do for you:
 
-### 2. Configure `segur-api`
+1. **Create the project and name the environments.** `railway init` (or the dashboard) once, then
+   **Project Settings → Environments**. IaC applies to whichever environment `railway link`
+   selected, and it never creates or renames one.
 
-- **Settings → Source**: set the deployment branch to the one this environment tracks —
-  `main` in `production`, `dev` in `dev`. See [Environments and branches](#environments-and-branches).
-- **Settings → Build**: Builder is `Railpack`. The repo already forces it via `railway.json`,
-  but set it in the UI too so the very first build uses the right builder.
-- **Settings → Config as Code**: leave the path as `railway.json` (the default root lookup).
-- **Settings → Networking → Public Networking**: click **Generate Domain**. Note the domain,
-  you need it for `API_URL` and for the frontend.
-- **Settings → Deploy**: turn on **Wait for CI**. Railway then holds the deploy in `WAITING`
-  until the GitHub Actions workflow on that commit passes, and marks it `SKIPPED` if CI fails.
-  You will be asked to accept updated GitHub permissions the first time.
-- Healthcheck, pre-deploy migration, restart policy and watch paths all come from
-  `railway.json` — do not set them by hand.
+   Railway starts every project with a single environment called `production`. Ours is the
+   **`dev`** one, so if `production` is the environment actually holding the demo, rename it via
+   the **⋮** menu beside it rather than building a second one — a rename keeps the services,
+   variables and database, where a new environment starts empty. `production` then gets recreated
+   later, when prod is real.
 
-### 3. Variables for `segur-api`
+   The name has to match `BRANCH_BY_ENVIRONMENT` in `.railway/railway.ts` exactly. An unmapped
+   name makes the file throw instead of guessing a branch.
+2. **Generate the public domain.** **Settings → Networking → Public Networking → Generate
+   Domain**, or `railway domain`. `API_URL` is built from `RAILWAY_PUBLIC_DOMAIN`, so the variable
+   resolves to nothing until a domain exists.
+3. **Set the secrets.** They are `preserve()` in the file on purpose — see
+   [Can the variables just live in the dashboard?](#can-the-variables-just-live-in-the-dashboard).
 
-Use **Variables → New Variable**. Values written as `${{...}}` are Railway reference variables,
-type them literally.
+   ```bash
+   railway variables --set "JWT_SECRET=..." --set "RESEND_API_KEY=..." \
+     --set "EMAIL_FROM=Segur <no-reply@yourdomain.com>" \
+     --set "S3_BUCKET=..." --set "S3_ENDPOINT=..." \
+     --set "S3_ACCESS_KEY_ID=..." --set "S3_SECRET_ACCESS_KEY=..."
+   ```
 
-| Variable | Value |
-|----------|-------|
-| `DATABASE_URL` | `${{Postgres.DATABASE_URL}}` |
-| `JWT_SECRET` | a fresh random string, 32+ chars |
-| `JOB_SECRET` | a fresh random string, 32+ chars (see step 5 about sharing it) |
-| `RESEND_API_KEY` | your Resend key |
-| `EMAIL_FROM` | `Segur <no-reply@yourdomain.com>` |
-| `APP_URL` | the frontend url |
-| `API_URL` | `https://${{RAILWAY_PUBLIC_DOMAIN}}` |
-| `NODE_ENV` | `production` |
-| `SEED_ON_DEPLOY` | leave UNSET in `production`; `true` only in `dev` |
+   `JOB_SECRET` is the exception: it is a **Project Settings → Shared Variables** entry, because
+   `segur-api` and `segur-jobs` must read the same value or every job call answers 401. The file
+   declares it as `ctx.shared.JOB_SECRET`, so they structurally cannot drift.
+4. **PR environments**, if you want them: **Project Settings → Environments → Enable PR
+   Environments**.
 
-Do **not** set `PORT` — Railway injects it and `env.ts` reads it.
+### Services created before IaC
 
-Optional, only to override defaults: `JWT_ACCESS_EXPIRATION`, `JWT_REFRESH_EXPIRATION`,
-`PASSWORD_RESET_EXPIRATION`, `PAGINATION_*`, `HITO_AVISO_DIAS`,
-`STORAGE_SIGNED_URL_TTL_SECONDS`, `STORAGE_MAX_FILE_SIZE_MB`.
+A service that already exists keeps whatever the dashboard has until an apply overwrites it, so
+before the first apply confirm that **Settings → Config as Code** is empty and that
+**Settings → Deploy → Custom Start Command / Pre-Deploy Command** are both blank. A value typed
+into either of those fields outlives the file.
 
-### 4. Decide where uploaded files live — required
-
-`STORAGE_DRIVER=local` writes to the container filesystem, which Railway wipes on every deploy.
-Uploaded policy and claim files would disappear. Pick one:
-
-- **Recommended — S3-compatible storage** (Cloudflare R2, Backblaze B2, Supabase, AWS). Set
-  `STORAGE_DRIVER=s3`, `S3_BUCKET`, `S3_ENDPOINT`, `S3_ACCESS_KEY_ID`, `S3_SECRET_ACCESS_KEY`,
-  `S3_REGION`. `env.ts` fails at boot if the driver is `s3` and any of them is missing, so a
-  misconfigured deploy never reaches the first upload.
-- **Railway Volume**: **Settings → Volumes → Add Volume**, mount path `/app/storage`, then set
-  `STORAGE_LOCAL_DIR=/app/storage`. A volume attaches to one instance, so `numReplicas` must
-  stay at `1` and horizontal scaling is off the table.
-
-### 5. Create the cron service `segur-jobs`
-
-1. **New → GitHub Repo → `segur-back`** again, in the same project. Name it `segur-jobs`.
-2. **Settings → Config as Code**: set the path to `railway.jobs.json`.
-3. **Settings → Source**: the same branch as the API in that environment.
-4. **Settings → Networking**: do **not** generate a domain. It is not a web service.
-5. The cron schedule (`0 13 * * *`, daily 13:00 UTC) comes from `railway.jobs.json`. Change it
-   there, not in the UI, or the two disagree.
-6. Variables for `segur-jobs`:
-
-| Variable | Value |
-|----------|-------|
-| `JOBS_API_URL` | `https://${{segur-api.RAILWAY_PUBLIC_DOMAIN}}` |
-| `JOB_SECRET` | **the same value as in `segur-api`** |
-| `DATABASE_URL` | `${{Postgres.DATABASE_URL}}` — build-time only, `prisma generate` reads it |
-
-The cleanest way to keep `JOB_SECRET` identical in both services is a **Project Settings →
-Shared Variables** entry, then reference it from each service. If the two ever drift, the job
-endpoints answer 401 and nothing is sent.
-
-Railway cron requires the process to exit; if a run is still `Active` the next one is skipped.
-`run-scheduled-jobs.ts` calls `process.exit()` for exactly that reason. The minimum interval
-Railway supports is 5 minutes, and schedules are always UTC.
-
-### 6. Optional but recommended
-
-- **Project Settings → Environments → Enable PR Environments**: every pull request gets a full
-  throwaway copy of the project, destroyed when the PR is merged or closed.
-- **Settings → Deploy → Region**: pick the region closest to your users.
+An empty **Config as Code** field is also the explanation for a service that builds fine but never
+runs its migrations: with no config file in play there is no `preDeployCommand` at all, which is
+exactly how this project's first deploy came up with an empty database.
 
 ## The CI/CD flow, end to end
 
@@ -386,19 +453,20 @@ pre-deploy step. Open the latest deploy's logs and search for:
 
 - **The line is there, followed by an error** — the migration itself failed. Read the error; the
   deploy should have aborted, so check whether an older deployment is still serving.
-- **The line is missing entirely** — `railway.json` is not being applied to this service, so
-  `preDeployCommand` does not exist as far as Railway is concerned. Check, in order:
-  1. **Settings → Config as Code** — the file path must be `railway.json`. A service created
-     before the file existed can have this empty.
+- **The line is missing entirely** — nothing is configuring `preDeployCommand` on this service.
+  Check, in order:
+  1. **Has `railway config apply` run against this environment at all?** `.railway/railway.ts`
+     only takes effect once applied. `railway config plan` shows whether the service's current
+     state already matches the file.
   2. **Settings → Deploy → Custom Start Command** and **Pre-Deploy Command** — a value typed into
-     the dashboard **overrides** the file. Clear them so `railway.json` wins, or keep the
-     dashboard as the single owner and accept that the file is decoration.
-  3. Confirm the deployed commit actually contains `railway.json`: **Settings → Source** must
-     track `dev`, not `main`. `main` is far behind and has none of the deploy config.
+     the dashboard outlives the file. Clear both.
+  3. **Settings → Config as Code** — must be empty. This was the original cause here: the field
+     was never set, so the old `railway.json` was never read and the service had no pre-deploy
+     command whatsoever.
 
-The start command is a quick tell in the logs. `bun run src/index.ts` on its own means
-`railway.json` is active. A nested `bun run start` wrapping it means Railpack fell back to
-auto-detecting `package.json`, which is the same signal that the config file is being ignored.
+The start command is a quick tell in the logs. `bun run src/index.ts` on its own means the config
+is being applied. A nested `bun run start` wrapping it means Railpack fell back to auto-detecting
+`package.json`, which is the same signal that nothing is configuring the service.
 
 ### `Cannot find module '@gen/enums'` on boot
 
@@ -413,11 +481,11 @@ resolved fine before this line — tsconfig paths are working, the files just ar
 
 Check, in order:
 
-1. **Is the build config actually in the deployed commit?** `railpack.json`, `railway.json` and
-   the `build` script in `package.json` only take effect once they are pushed to the branch the
-   service tracks. A tell-tale sign is a doubled error: `bun run start` wrapping
-   `bun run src/index.ts` means Railpack fell back to auto-detecting the `start` script instead
-   of using `railway.json`, so the config file was not in the commit either.
+1. **Is the build config actually in the deployed commit?** `railpack.json` and the `build` script
+   in `package.json` only take effect once they are pushed to the branch the service tracks. A
+   tell-tale sign is a doubled error: `bun run start` wrapping `bun run src/index.ts` means
+   Railpack fell back to auto-detecting the `start` script, so the deploy config was not in the
+   commit either.
 2. **Did the build log run `prisma generate`?** Look for
    `✔ Generated Prisma Client (7.4.1) to ./generated/prisma` in the Railway build logs. If it is
    absent, the `build` step did not fire.

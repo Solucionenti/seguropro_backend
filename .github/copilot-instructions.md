@@ -312,14 +312,16 @@ Each feature module lives in `src/modules/[feature]/` with 4 layers:
 
 Full runbook and dashboard checklist in `RAILWAY.md`. The rules that constrain code changes:
 
-- Branches map to Railway environments: `main` → `production` (prod, NOT set up yet and well behind `dev`), `dev` → the `dev` environment (QA/demo, the live one). The Railway environment MUST be named `dev`: `railway.json` keys its override block on that name. CI runs on both branches so **Wait for CI** has a check suite to gate on.
+- Deployment config is **Infrastructure as Code** in `.railway/railway.ts`: one file declaring the database, both services, their variables, the cron schedule and Wait for CI. Config as Code (`railway.json` / `railway.toml`) is DEPRECATED by Railway and stops being read on 2026-12-01; both files were removed. A service must not be managed by both systems. Applying needs Railway CLI v4.6+ (`railway config plan` / `railway config apply`).
+- Branches map to Railway environments through `BRANCH_BY_ENVIRONMENT`: `main` → `production` (prod, NOT set up yet and well behind `dev`), `dev` → the `dev` environment (QA/demo, the live one). An unmapped environment name MUST keep throwing — a silent fallback to `main` would deploy stale code onto a live demo. CI runs on both branches so **Wait for CI** (`checkSuites`) has a check suite to gate on.
+- IaC reconciles by name and omission means deletion, so a variable that exists only in the dashboard is a deletion candidate. Declare every variable: a literal for non-secret config, `preserve()` for secrets and credentials (value stays on Railway, never in git), `ctx.shared.X` for a secret two services must agree on. `JOB_SECRET` MUST stay `ctx.shared.JOB_SECRET` so api and cron cannot drift — a mismatch makes every job call answer 401.
+- Migrations and seeding run through `scripts/deploy-prepare.ts`, wired as the Railway **pre-deploy command**. NEVER migrate or seed from `src/index.ts` — with more than one replica they would race.
+- Seeding on deploy is driven by `SEED_ON_DEPLOY`, set from `SEEDED_ENVIRONMENTS` in the IaC file. Production is `'false'`.
+- Both services deploy from this repo at the same commit and are declared in the same IaC file; they differ only in start command and cron schedule. Keep their `watchPatterns` sharing the one `WATCH_PATTERNS` constant.
 - Builder is **Railpack**, pinned in `railpack.json`. There is NO Dockerfile and none is wanted.
 - `package.json` MUST keep a `build` script running `prisma generate`. `generated/` is gitignored, so the client has to be regenerated on every build or the image boots without one.
-- Migrations and seeding run through `scripts/deploy-prepare.ts`, wired as the Railway **pre-deploy command** in `railway.json`. NEVER migrate or seed from `src/index.ts` — with more than one replica they would race.
-- Seeding on deploy is opt-in via `SEED_ON_DEPLOY=true`, set per service. Production leaves it unset. The flag exists so the same `railway.json` serves demo and production without editing.
 - `prisma/seed.ts` MUST stay idempotent, because it runs on every deploy of a seeded service. Key each seeder on the row's real identity, NOT on `status`: a `MASTER_ADMIN` has `companyId = null` and Postgres treats nulls as distinct, so `@@unique([companyId, email])` does not stop a duplicate. Filtering by `status: ACTIVE` silently created a second `admin@segurpro.com` on the next run.
 - The seed does NOT resurrect a deactivated admin. Deactivating the platform admin is deliberate; the seed warns and leaves it.
-- Two services deploy from this repo at the same commit, each with its own config file: `railway.json` (api) and `railway.jobs.json` (cron). Keep both in sync when a build input changes.
 - `scripts/run-scheduled-jobs.ts` is the cron entrypoint. It MUST stay standalone (only `JOBS_API_URL`/`API_URL` and `JOB_SECRET`, never `@/config/env`) and MUST call `process.exit()`, or Railway skips the next run.
 - Deploys are gated on `.github/workflows/ci.yml` via Railway **Wait for CI**.
 - `STORAGE_DRIVER=local` is not viable on Railway without a volume; production uses `s3`.

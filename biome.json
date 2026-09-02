@@ -9,7 +9,15 @@
   },
   "files": {
     "ignoreUnknown": false,
-    "includes": ["src/**", "tests/**", "scripts/**", "*.json", "*.toml", "*.config.ts"]
+    "includes": [
+      "src/**",
+      "tests/**",
+      "scripts/**",
+      ".railway/**",
+      "*.json",
+      "*.toml",
+      "*.config.ts"
+    ]
   },
   "formatter": {
     "enabled": true,
