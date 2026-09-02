@@ -284,13 +284,17 @@ railway link                     # pick project, environment, service
 
 railway variables                # inspect what the service actually has
 railway logs                     # tail deploy logs
+railway ssh                      # shell INSIDE the running container
+railway connect Postgres         # psql against the database service
 railway run bun run dev          # run locally against Railway's variables
-railway run bunx prisma migrate deploy
 railway up                       # manual deploy of the working tree, bypasses git
 ```
 
 `railway run` is the fastest way to reproduce a production-only problem: it injects the real
-service variables into a local process without ever copying secrets into `.env`.
+service variables into a local process without ever copying secrets into `.env`. It does NOT work
+for anything touching the database — see
+[Running commands against a deployed environment](#running-commands-against-a-deployed-environment)
+for why, and use `railway ssh` for migrations.
 
 ## Testing the cron by hand
 
@@ -302,7 +306,99 @@ curl -X POST "https://<your-api-domain>/api/v1/jobs/notificar-polizas-por-vencer
 Both jobs are idempotent — `NotificacionEnviada` has a unique on `(tipo, entidadId, marca)`, so
 re-running the same day sends nothing. Add `?hoy=YYYY-MM-DD` to replay a specific day.
 
+## Running commands against a deployed environment
+
+Three different things, and picking the wrong one is the usual source of confusion:
+
+| Command | Where the code runs | Which `DATABASE_URL` it sees |
+|---------|--------------------|------------------------------|
+| `railway ssh` | **Inside the running container**, on Railway | The internal one. Works out of the box. |
+| `railway run <cmd>` | On your laptop, with the service's variables injected | The internal one — **unreachable from your laptop**. |
+| `railway connect Postgres` | Opens `psql` against the database service | n/a, it connects for you |
+
+### `railway ssh` — the one you want for migrations and one-off fixes
+
+```bash
+railway link                       # project, environment (dev), service (segur-api)
+railway ssh
+
+# now inside the container, on Railway's network:
+bunx prisma migrate deploy         # apply migrations
+bunx prisma db seed                # idempotent, safe to re-run
+bunx prisma migrate status         # what has and has not been applied
+```
+
+This is the shell to reach for when the database is missing tables, because it runs with the
+service's real internal `DATABASE_URL` and needs no public access. `-s/--service` and
+`-e/--environment` target a specific service without re-linking.
+
+### `railway run` — and why it fails against the database
+
+`railway run` injects the service's variables into a process on **your machine**. `DATABASE_URL`
+points at `postgres.railway.internal`, a hostname that only resolves inside Railway's network, so
+anything touching the database fails to connect.
+
+To reach the database from your laptop you have to expose it: the database service's
+**Settings → Networking → Public Access** creates a TCP proxy and populates `DATABASE_PUBLIC_URL`.
+Then point Prisma at that instead:
+
+```bash
+DATABASE_URL="$(railway variables --service Postgres --kv | grep '^DATABASE_PUBLIC_URL=' | cut -d= -f2-)" \
+  bunx prisma migrate deploy
+```
+
+Public access bills network egress and widens the database's exposure, so prefer `railway ssh`
+for routine work and keep the proxy off unless you actually need a local tool (Prisma Studio, a
+GUI client) pointed at it.
+
+### `railway connect` — a psql shell
+
+```bash
+railway connect Postgres
+\dt                                # list tables — empty means migrations never ran
+select count(*) from users;
+```
+
+Fastest way to answer "did the migrations actually apply".
+
 ## Troubleshooting
+
+### `The table 'public.users' does not exist` on login
+
+Prisma `P2021`. The service is up and serving, so the build worked — the database is simply
+empty. Migrations never ran against it.
+
+**Unblock it now** ([`railway ssh`](#running-commands-against-a-deployed-environment) runs inside
+the container, so it uses the internal `DATABASE_URL` and needs no public access):
+
+```bash
+railway ssh
+bunx prisma migrate deploy
+bunx prisma db seed
+```
+
+**Then find out why it did not happen on its own.** Migrations are supposed to run as the
+pre-deploy step. Open the latest deploy's logs and search for:
+
+```
+[pre-deploy] migrate: bunx prisma migrate deploy
+```
+
+- **The line is there, followed by an error** — the migration itself failed. Read the error; the
+  deploy should have aborted, so check whether an older deployment is still serving.
+- **The line is missing entirely** — `railway.json` is not being applied to this service, so
+  `preDeployCommand` does not exist as far as Railway is concerned. Check, in order:
+  1. **Settings → Config as Code** — the file path must be `railway.json`. A service created
+     before the file existed can have this empty.
+  2. **Settings → Deploy → Custom Start Command** and **Pre-Deploy Command** — a value typed into
+     the dashboard **overrides** the file. Clear them so `railway.json` wins, or keep the
+     dashboard as the single owner and accept that the file is decoration.
+  3. Confirm the deployed commit actually contains `railway.json`: **Settings → Source** must
+     track `dev`, not `main`. `main` is far behind and has none of the deploy config.
+
+The start command is a quick tell in the logs. `bun run src/index.ts` on its own means
+`railway.json` is active. A nested `bun run start` wrapping it means Railpack fell back to
+auto-detecting `package.json`, which is the same signal that the config file is being ignored.
 
 ### `Cannot find module '@gen/enums'` on boot
 
