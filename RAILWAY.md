@@ -1,0 +1,315 @@
+# Deploying Segur Backend on Railway
+
+Everything in this repo is already wired for Railway. What is left is the dashboard setup.
+
+- Just showing a demo? Go to [Demo environment](#demo-environment--the-short-path).
+- Setting up the real thing? Go to [Dashboard checklist](#dashboard-checklist).
+
+## Shape of the deployment
+
+One Railway **project** with three services, all in the same environment:
+
+| Service | Source | What it does |
+|---------|--------|--------------|
+| `Postgres` | Railway database template | Managed PostgreSQL. Provides `DATABASE_URL`. |
+| `segur-api` | this repo, config `railway.json` | The Elysia API. Public domain, healthcheck, migrations on deploy. |
+| `segur-jobs` | this repo, config `railway.jobs.json` | Cron service. Posts the `/api/v1/jobs/*` endpoints once a day and exits. |
+
+`segur-api` and `segur-jobs` deploy from the **same repository and the same commit**. They only
+differ in the config-as-code file each one points at.
+
+## Files in this repo
+
+| File | Purpose |
+|------|---------|
+| `railpack.json` | Builder config. Pins Bun and lets the Node provider detect the rest. |
+| `railway.json` | Config as code for `segur-api`: builder, watch paths, pre-deploy migration, healthcheck, restart policy. |
+| `railway.jobs.json` | Config as code for `segur-jobs`: start command and cron schedule. |
+| `scripts/deploy-prepare.ts` | The pre-deploy entrypoint: `prisma migrate deploy`, then the seed if `SEED_ON_DEPLOY=true`. |
+| `scripts/run-scheduled-jobs.ts` | The cron entrypoint. Standalone — needs only a url and `JOB_SECRET`. |
+| `.railwayignore` | Keeps docs and CI files out of the build context. |
+| `.github/workflows/ci.yml` | Lint, type-check and tests. Railway waits on this before deploying. |
+
+### How the build works
+
+Railpack detects `bun.lock` and installs with Bun, then runs `prisma generate`. That step is
+**not optional**: `generated/` is gitignored, so without it the image has no Prisma client and the
+server dies on its first import with `Cannot find module @gen/enums`.
+
+It is wired in twice deliberately — as the `build` script in `package.json`, which Railpack
+auto-detects, and explicitly in `railpack.json` under `steps.build.commands` so the build does not
+depend on that detection. Running it twice costs ~200 ms; not running it costs the service.
+
+Migrations run as the **pre-deploy command**, in a separate container, before the new version
+receives traffic. The command is `bun run scripts/deploy-prepare.ts`, which runs
+`prisma migrate deploy` and then, only if `SEED_ON_DEPLOY=true` is set on that service,
+`prisma db seed`. A non-zero exit aborts the deploy and the previous version keeps serving.
+
+## Demo environment — the short path
+
+For a demo you do not need S3, a custom domain or the cron service. Five required variables, two
+of which you generate yourself and two of which Railway fills in for you.
+
+### Generate the secrets
+
+```bash
+bun -e "const s=(n=48)=>{const b=new Uint8Array(n);crypto.getRandomValues(b);return Buffer.from(b).toString('base64url')};console.log('JWT_SECRET='+s());console.log('JOB_SECRET='+s())"
+```
+
+Both come out 64 chars, well past the 32-char floor `env.ts` enforces. They are unrelated to each
+other and to any third party — nothing external has to know them. Rotating `JWT_SECRET`
+invalidates every issued token; rotating `JOB_SECRET` means updating it on `segur-jobs` too.
+
+### Where each value comes from
+
+| Variable | Where you get it |
+|----------|------------------|
+| `DATABASE_URL` | Railway. Type `${{Postgres.DATABASE_URL}}` — never paste the literal string. |
+| `API_URL` | Railway. Type `https://${{RAILWAY_PUBLIC_DOMAIN}}` after generating a domain. |
+| `JWT_SECRET` | You generate it, command above. |
+| `JOB_SECRET` | You generate it, command above. |
+| `RESEND_API_KEY` | <https://resend.com/api-keys> → **Create API Key**, permission **Sending access**. Shown once, copy it immediately. |
+| `EMAIL_FROM` | `Segur Demo <onboarding@resend.dev>` until you verify a domain — see the caveat below. |
+| `APP_URL` | Your frontend url. Only used to build the password-reset link. |
+| `SEED_ON_DEPLOY` | Set it to `true` on the demo service so every deploy re-seeds. |
+
+`NODE_ENV` is validated but never branched on — it only shows up in the boot log. `PORT` is
+injected by Railway; do not set it.
+
+### The Resend caveat that will bite a demo
+
+Resend requires a verified domain to send to arbitrary recipients. Until you verify one, the
+shared `onboarding@resend.dev` sender **only delivers to the email address you signed up to
+Resend with**. Any other recipient comes back as a 403.
+
+So for a demo, either:
+
+- create the demo OWNER and CLIENT accounts with *your own* Resend signup address, so password
+  resets and expiry notices actually land, or
+- verify a real domain at <https://resend.com/domains> (a handful of DNS records) and send from
+  `no-reply@yourdomain.com`.
+
+Nothing else in the API depends on email, so an unverified account still lets you demo every other
+flow — the send just fails and is counted in `fallidas` in the job summary.
+
+### Files, without signing up for anything
+
+**Settings → Volumes → Add Volume**, mount path `/app/storage`, then set
+`STORAGE_LOCAL_DIR=/app/storage` and keep `STORAGE_DRIVER=local`. Also set `RAILWAY_RUN_UID=0`: a
+container running as a non-root uid cannot write into a mounted volume. A volume rules out
+replicas, which is fine at `numReplicas: 1`.
+
+### Seed the demo data
+
+Set `SEED_ON_DEPLOY=true` on the demo service and every deploy re-seeds automatically, as part of
+the pre-deploy step that already runs the migrations. Leave it unset in production.
+
+The seed is idempotent, so re-running it is a no-op:
+
+- The system admin is matched on `email` + `companyId: null` — its real identity — not on
+  `status`. That distinction matters: a `MASTER_ADMIN` has `companyId = null`, and Postgres treats
+  nulls as distinct in a unique index, so `@@unique([companyId, email])` does **not** stop a second
+  `admin@segurpro.com` from being inserted. Matching on `status: ACTIVE` did exactly that.
+- If the admin exists but is `INACTIVE`/`DELETED`, the seed warns and leaves it alone. Deactivating
+  the platform admin is a deliberate act and a seed should not silently undo it. If that happens on
+  the demo you will have no working login — reactivate the row by hand.
+
+To run it manually instead:
+
+```bash
+railway link                       # pick the project, environment and segur-api
+railway run bun run db:seed
+```
+
+Either way the login is `admin@segurpro.com` / `Admin123!`, role `MASTER_ADMIN`. That is all the
+seed creates — company, owners, agents, clients and polizas you create through the API, starting at
+`POST /api/v1/auth/register-owner`.
+
+### Skip the cron service for now
+
+Do not create `segur-jobs` for a demo. Trigger the jobs by hand when you want to show them:
+
+```bash
+curl -X POST "https://<your-domain>/api/v1/jobs/notificar-polizas-por-vencer" -H "x-job-secret: <JOB_SECRET>"
+```
+
+Add `?hoy=YYYY-MM-DD` to replay a date, which is how you demo an expiry notice without waiting for
+a policy to actually approach its `fechaVencimiento`.
+
+## Dashboard checklist
+
+### 1. Create the project and the database
+
+1. **New Project → Deploy PostgreSQL**. This creates the `Postgres` service.
+2. In the same project, **New → GitHub Repo → `segur-back`**. Name the service `segur-api`.
+
+### 2. Configure `segur-api`
+
+- **Settings → Source**: set the deployment branch to `main`.
+- **Settings → Build**: Builder is `Railpack`. The repo already forces it via `railway.json`,
+  but set it in the UI too so the very first build uses the right builder.
+- **Settings → Config as Code**: leave the path as `railway.json` (the default root lookup).
+- **Settings → Networking → Public Networking**: click **Generate Domain**. Note the domain,
+  you need it for `API_URL` and for the frontend.
+- **Settings → Deploy**: turn on **Wait for CI**. Railway then holds the deploy in `WAITING`
+  until the GitHub Actions workflow on that commit passes, and marks it `SKIPPED` if CI fails.
+  You will be asked to accept updated GitHub permissions the first time.
+- Healthcheck, pre-deploy migration, restart policy and watch paths all come from
+  `railway.json` — do not set them by hand.
+
+### 3. Variables for `segur-api`
+
+Use **Variables → New Variable**. Values written as `${{...}}` are Railway reference variables,
+type them literally.
+
+| Variable | Value |
+|----------|-------|
+| `DATABASE_URL` | `${{Postgres.DATABASE_URL}}` |
+| `JWT_SECRET` | a fresh random string, 32+ chars |
+| `JOB_SECRET` | a fresh random string, 32+ chars (see step 5 about sharing it) |
+| `RESEND_API_KEY` | your Resend key |
+| `EMAIL_FROM` | `Segur <no-reply@yourdomain.com>` |
+| `APP_URL` | the frontend url |
+| `API_URL` | `https://${{RAILWAY_PUBLIC_DOMAIN}}` |
+| `NODE_ENV` | `production` |
+| `SEED_ON_DEPLOY` | leave UNSET in production; `true` only on demo/staging |
+
+Do **not** set `PORT` — Railway injects it and `env.ts` reads it.
+
+Optional, only to override defaults: `JWT_ACCESS_EXPIRATION`, `JWT_REFRESH_EXPIRATION`,
+`PASSWORD_RESET_EXPIRATION`, `PAGINATION_*`, `HITO_AVISO_DIAS`,
+`STORAGE_SIGNED_URL_TTL_SECONDS`, `STORAGE_MAX_FILE_SIZE_MB`.
+
+### 4. Decide where uploaded files live — required
+
+`STORAGE_DRIVER=local` writes to the container filesystem, which Railway wipes on every deploy.
+Uploaded policy and claim files would disappear. Pick one:
+
+- **Recommended — S3-compatible storage** (Cloudflare R2, Backblaze B2, Supabase, AWS). Set
+  `STORAGE_DRIVER=s3`, `S3_BUCKET`, `S3_ENDPOINT`, `S3_ACCESS_KEY_ID`, `S3_SECRET_ACCESS_KEY`,
+  `S3_REGION`. `env.ts` fails at boot if the driver is `s3` and any of them is missing, so a
+  misconfigured deploy never reaches the first upload.
+- **Railway Volume**: **Settings → Volumes → Add Volume**, mount path `/app/storage`, then set
+  `STORAGE_LOCAL_DIR=/app/storage`. A volume attaches to one instance, so `numReplicas` must
+  stay at `1` and horizontal scaling is off the table.
+
+### 5. Create the cron service `segur-jobs`
+
+1. **New → GitHub Repo → `segur-back`** again, in the same project. Name it `segur-jobs`.
+2. **Settings → Config as Code**: set the path to `railway.jobs.json`.
+3. **Settings → Source**: same branch as the API, `main`.
+4. **Settings → Networking**: do **not** generate a domain. It is not a web service.
+5. The cron schedule (`0 13 * * *`, daily 13:00 UTC) comes from `railway.jobs.json`. Change it
+   there, not in the UI, or the two disagree.
+6. Variables for `segur-jobs`:
+
+| Variable | Value |
+|----------|-------|
+| `JOBS_API_URL` | `https://${{segur-api.RAILWAY_PUBLIC_DOMAIN}}` |
+| `JOB_SECRET` | **the same value as in `segur-api`** |
+| `DATABASE_URL` | `${{Postgres.DATABASE_URL}}` — build-time only, `prisma generate` reads it |
+
+The cleanest way to keep `JOB_SECRET` identical in both services is a **Project Settings →
+Shared Variables** entry, then reference it from each service. If the two ever drift, the job
+endpoints answer 401 and nothing is sent.
+
+Railway cron requires the process to exit; if a run is still `Active` the next one is skipped.
+`run-scheduled-jobs.ts` calls `process.exit()` for exactly that reason. The minimum interval
+Railway supports is 5 minutes, and schedules are always UTC.
+
+### 6. Optional but recommended
+
+- **Project Settings → Environments → Enable PR Environments**: every pull request gets a full
+  throwaway copy of the project, destroyed when the PR is merged or closed.
+- **A `staging` environment**: create it, point its `segur-api` at the `dev-demi` branch, and it
+  picks up the `environments.staging` override in `railway.json` (sleeps when idle to save
+  cost). CI already runs on `dev-demi`.
+- **Settings → Deploy → Region**: pick the region closest to your users.
+
+## The CI/CD flow, end to end
+
+```
+push / PR ──► GitHub Actions (.github/workflows/ci.yml)
+                 lint · type-check · tests against a real Postgres
+                     │
+                     ├─ fail ──► Railway deploy is SKIPPED
+                     │
+                     └─ pass ──► Railway builds with Railpack
+                                    │
+                                    ├─ install (bun) + build (prisma generate)
+                                    ├─ pre-deploy: migrate, then seed if SEED_ON_DEPLOY
+                                    ├─ healthcheck GET /api/v1/health
+                                    └─ traffic switches over, old version drains
+```
+
+A failed healthcheck or a failed migration leaves the previous deployment serving.
+
+## Railway CLI
+
+```bash
+bun add -g @railway/cli          # or: npm i -g @railway/cli
+railway login
+railway link                     # pick project, environment, service
+
+railway variables                # inspect what the service actually has
+railway logs                     # tail deploy logs
+railway run bun run dev          # run locally against Railway's variables
+railway run bunx prisma migrate deploy
+railway up                       # manual deploy of the working tree, bypasses git
+```
+
+`railway run` is the fastest way to reproduce a production-only problem: it injects the real
+service variables into a local process without ever copying secrets into `.env`.
+
+## Testing the cron by hand
+
+```bash
+curl -X POST "https://<your-api-domain>/api/v1/jobs/notificar-polizas-por-vencer" \
+  -H "x-job-secret: $JOB_SECRET"
+```
+
+Both jobs are idempotent — `NotificacionEnviada` has a unique on `(tipo, entidadId, marca)`, so
+re-running the same day sends nothing. Add `?hoy=YYYY-MM-DD` to replay a specific day.
+
+## Troubleshooting
+
+### `Cannot find module '@gen/enums'` on boot
+
+```
+error: Cannot find module '@gen/enums' from '/app/src/modules/<any>/presentation/controller.ts'
+error: script "start" exited with code 1
+```
+
+The Prisma client is missing from the image. `@gen/*` maps to `generated/prisma/*`, which is
+gitignored and therefore has to be regenerated during every build. Note that `@/` imports
+resolved fine before this line — tsconfig paths are working, the files just are not there.
+
+Check, in order:
+
+1. **Is the build config actually in the deployed commit?** `railpack.json`, `railway.json` and
+   the `build` script in `package.json` only take effect once they are pushed to the branch the
+   service tracks. A tell-tale sign is a doubled error: `bun run start` wrapping
+   `bun run src/index.ts` means Railpack fell back to auto-detecting the `start` script instead
+   of using `railway.json`, so the config file was not in the commit either.
+2. **Did the build log run `prisma generate`?** Look for
+   `✔ Generated Prisma Client (7.4.1) to ./generated/prisma` in the Railway build logs. If it is
+   absent, the `build` step did not fire.
+3. Reproduce locally to be certain it is the same failure:
+
+```bash
+rm -rf generated && bun run src/index.ts   # crashes exactly like Railway
+bun run build && bun run src/index.ts      # boots
+```
+
+`prisma generate` is wired in twice on purpose — as the `build` script in `package.json` (what
+Railpack auto-detects) and explicitly in `railpack.json` under `steps.build.commands`. It is
+idempotent and takes ~200 ms, and a missing client takes the whole service down.
+
+## Notes
+
+- `segur-jobs` reaches the API over its **public** domain. Railway's private network is
+  IPv6-only and the server binds to `0.0.0.0`, so private networking would need
+  `app.listen({ port, hostname: '::' })` in `src/index.ts` first. Two requests a day over the
+  public edge is not worth that change today.
+- `railpack.json` pins Bun to `1.3.14`. If a build ever fails resolving that version, loosen it
+  to `"1.3"`.
