@@ -14,10 +14,10 @@ One Railway **project**, with the same three services in each environment:
 | Service | Source | What it does |
 |---------|--------|--------------|
 | `Postgres` | Railway database template | Managed PostgreSQL. Provides `DATABASE_URL`. |
-| `segur-api` | this repo, via `.railway/railway.ts` | The Elysia API. Public domain, healthcheck, migrations on deploy. |
-| `segur-jobs` | this repo, via `.railway/railway.ts` | Cron service. Posts the `/api/v1/jobs/*` endpoints once a day and exits. |
+| `seguropro_backend` | this repo, via `.railway/railway.ts` | The Elysia API. Public domain, healthcheck, migrations on deploy. |
+| `seguropro_jobs` | this repo, via `.railway/railway.ts` | Cron service. Posts the `/api/v1/jobs/*` endpoints once a day and exits. |
 
-`segur-api` and `segur-jobs` deploy from the **same repository and the same commit**, both
+`seguropro_backend` and `seguropro_jobs` deploy from the **same repository and the same commit**, both
 declared in `.railway/railway.ts`. They differ only in start command and cron schedule.
 
 ## Environments and branches
@@ -84,23 +84,55 @@ railway config apply             # preview, confirm, apply
 `railway config pull` imports the project's current state into the authoring file — useful to see
 Railway's own naming before trusting the constants at the top of the file.
 
-### Read the plan before the first apply
+### This file owns only the backend
 
-IaC adopts a resource by **name**. A name that does not match something that already exists makes
-it **create** a new resource rather than adopt the existing one, so the first `railway config plan`
-in each environment has to be read carefully. The names to confirm are the constants at the top of
-`.railway/railway.ts`:
+The Railway project also holds `seguropro_front`, which lives in a different repository
+(`../seguropro_frontend`) and is managed entirely from the dashboard. Since omission means
+deletion, a file describing "the whole environment" would treat the frontend as garbage.
+
+The escape hatch is a **named partial**, exported at the top of `.railway/railway.ts`:
 
 ```ts
-const PROJECT_FALLBACK = 'profound-balance'
-const DB_SERVICE = 'Postgres'
-const API_SERVICE = 'segur-api'
-const JOBS_SERVICE = 'segur-jobs'
-const FRONT_SERVICE = 'seguropro_front'
+export const partial = 'segur-backend'
 ```
 
-The project name comes from `ctx.projectName` when the CLI provides it, and only falls back to the
-constant. The service names are what you actually have to check.
+Ownership is scoped to that name: `omit = delete` then applies only to resources this partial
+already owns, so `seguropro_front` is left alone rather than destroyed. The name must stay stable
+forever — renaming it orphans everything the partial currently owns.
+
+The frontend needs no `.railway/` file of its own. Dashboard-managed is fine; the deprecation
+only kills `railway.json` / `railway.toml`, not manual configuration. If it ever gets one, it
+should export its own partial name.
+
+### Read the plan before the first apply — a real example
+
+IaC matches resources by **name**. The first plan in this project looked like this:
+
+```
+Plan: 2 to add, 0 to change, 2 to destroy
+  + Create service segur-api
+  + Create service segur-jobs
+  - Delete service seguropro_front
+  - Delete service seguropro_backend
+
+! 2 destructive change(s) will remove Railway resources or variables.
+```
+
+Two separate mistakes, both caught by `plan` rather than by an outage:
+
+1. The file said `segur-api`; the live service is `seguropro_backend`. A name that does not match
+   does not adopt — it **creates a new service and deletes the real one**, taking its domain and
+   variables with it.
+2. `seguropro_front` was not declared and the file had no partial export, so it was scheduled for
+   deletion despite belonging to another repository.
+
+`Postgres` was the one thing that behaved: it appears in neither list, because the name matched
+and it was adopted with no changes. That is what a correct line looks like.
+
+After both fixes the plan should read roughly `1 to add` (`seguropro_jobs`, which genuinely does
+not exist yet), `1 to change` (`seguropro_backend`, adopting the build and deploy settings), and
+**`0 to destroy`**. Treat any `destroy` line as a stop sign until you can name the resource and
+explain why it should go.
 
 ### Environments in one file
 
@@ -145,8 +177,8 @@ credentials have to be set once per environment before the service can boot.
 This repo splits it that way on purpose: `NODE_ENV`, the JWT expirations, the pagination limits,
 `HITO_AVISO_DIAS`, `SEED_ON_DEPLOY`, `STORAGE_DRIVER` and `S3_REGION` are literals, because they
 are configuration worth reviewing in a diff. `JWT_SECRET`, `RESEND_API_KEY`, `EMAIL_FROM` and the
-four `S3_*` credentials are `preserve()`. `JOB_SECRET` is `ctx.shared.JOB_SECRET`, so `segur-api`
-and `segur-jobs` structurally cannot drift — a mismatch there makes every job call answer 401.
+four `S3_*` credentials are `preserve()`. `JOB_SECRET` is `ctx.shared.JOB_SECRET`, so `seguropro_backend`
+and `seguropro_jobs` structurally cannot drift — a mismatch there makes every job call answer 401.
 
 Going all-`preserve()` is possible and would keep every value out of code, but it also throws away
 the part of IaC that makes an environment reproducible: the file becomes a list of names and a
@@ -192,7 +224,7 @@ bun -e "const s=(n=48)=>{const b=new Uint8Array(n);crypto.getRandomValues(b);ret
 
 Both come out 64 chars, well past the 32-char floor `env.ts` enforces. They are unrelated to each
 other and to any third party — nothing external has to know them. Rotating `JWT_SECRET`
-invalidates every issued token; rotating `JOB_SECRET` means updating it on `segur-jobs` too.
+invalidates every issued token; rotating `JOB_SECRET` means updating it on `seguropro_jobs` too.
 
 ### Where each value comes from
 
@@ -255,7 +287,7 @@ The seed is idempotent, so re-running it is a no-op:
 To run it manually instead:
 
 ```bash
-railway link                       # pick the project, environment and segur-api
+railway link                       # pick the project, environment and seguropro_backend
 railway run bun run db:seed
 ```
 
@@ -265,7 +297,7 @@ seed creates — company, owners, agents, clients and polizas you create through
 
 ### Skip the cron service for now
 
-Do not create `segur-jobs` for a demo. Trigger the jobs by hand when you want to show them:
+Do not create `seguropro_jobs` for a demo. Trigger the jobs by hand when you want to show them:
 
 ```bash
 curl -X POST "https://<your-domain>/api/v1/jobs/notificar-polizas-por-vencer" -H "x-job-secret: <JOB_SECRET>"
@@ -308,7 +340,7 @@ Four things IaC does not do for you:
    ```
 
    `JOB_SECRET` is the exception: it is a **Project Settings → Shared Variables** entry, because
-   `segur-api` and `segur-jobs` must read the same value or every job call answers 401. The file
+   `seguropro_backend` and `seguropro_jobs` must read the same value or every job call answers 401. The file
    declares it as `ctx.shared.JOB_SECRET`, so they structurally cannot drift.
 4. **PR environments**, if you want them: **Project Settings → Environments → Enable PR
    Environments**.
@@ -386,7 +418,7 @@ Three different things, and picking the wrong one is the usual source of confusi
 ### `railway ssh` — the one you want for migrations and one-off fixes
 
 ```bash
-railway link                       # project, environment (dev), service (segur-api)
+railway link                       # project, environment (dev), service (seguropro_backend)
 railway ssh
 
 # now inside the container, on Railway's network:
@@ -502,7 +534,7 @@ idempotent and takes ~200 ms, and a missing client takes the whole service down.
 
 ## Notes
 
-- `segur-jobs` reaches the API over its **public** domain. Railway's private network is
+- `seguropro_jobs` reaches the API over its **public** domain. Railway's private network is
   IPv6-only and the server binds to `0.0.0.0`, so private networking would need
   `app.listen({ port, hostname: '::' })` in `src/index.ts` first. Two requests a day over the
   public edge is not worth that change today.

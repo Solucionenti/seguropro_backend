@@ -1,15 +1,22 @@
 import { defineRailway, github, postgres, preserve, service } from 'railway/iac'
 
+// this file owns ONLY the backend resources. the frontend (seguropro_front) lives in its own
+// repository, and without this export "omit = delete" would treat every resource missing from
+// here as garbage and destroy it. the name must stay stable forever: renaming it orphans
+// everything this partial currently owns
+export const partial = 'segur-backend'
+
 // verified against `git remote -v`
 const REPO = 'Solucionenti/seguropro_backend'
 
-// CONFIRM these against the real project before the first `railway config apply`: a name that
-// does not match an existing resource makes IaC CREATE one instead of adopting it.
-// `railway config pull` prints the actual names.
+// these MUST match the live resource names exactly. a name that does not match makes IaC CREATE
+// a new service and DELETE the real one, which is what `railway config plan` caught on the first
+// run. `railway config plan` is the check — it prints add/change/destroy per resource
 const PROJECT_FALLBACK = 'profound-balance'
 const DB_SERVICE = 'Postgres'
-const API_SERVICE = 'segur-api'
-const JOBS_SERVICE = 'segur-jobs'
+const API_SERVICE = 'seguropro_backend'
+const JOBS_SERVICE = 'seguropro_jobs'
+// referenced for APP_URL only, never declared: it belongs to the frontend's own partial
 const FRONT_SERVICE = 'seguropro_front'
 
 // which git branch each railway environment deploys, and which one re-seeds on every deploy.
