@@ -312,6 +312,7 @@ Each feature module lives in `src/modules/[feature]/` with 4 layers:
 
 Full runbook and dashboard checklist in `RAILWAY.md`. The rules that constrain code changes:
 
+- Branches map to Railway environments: `main` → `production` (prod, NOT set up yet and well behind `dev`), `dev` → the `dev` environment (QA/demo, the live one). The Railway environment MUST be named `dev`: `railway.json` keys its override block on that name. CI runs on both branches so **Wait for CI** has a check suite to gate on.
 - Builder is **Railpack**, pinned in `railpack.json`. There is NO Dockerfile and none is wanted.
 - `package.json` MUST keep a `build` script running `prisma generate`. `generated/` is gitignored, so the client has to be regenerated on every build or the image boots without one.
 - Migrations and seeding run through `scripts/deploy-prepare.ts`, wired as the Railway **pre-deploy command** in `railway.json`. NEVER migrate or seed from `src/index.ts` — with more than one replica they would race.

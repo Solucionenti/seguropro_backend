@@ -2,12 +2,13 @@
 
 Everything in this repo is already wired for Railway. What is left is the dashboard setup.
 
+- Which branch goes where? See [Environments and branches](#environments-and-branches).
 - Just showing a demo? Go to [Demo environment](#demo-environment--the-short-path).
 - Setting up the real thing? Go to [Dashboard checklist](#dashboard-checklist).
 
 ## Shape of the deployment
 
-One Railway **project** with three services, all in the same environment:
+One Railway **project**, with the same three services in each environment:
 
 | Service | Source | What it does |
 |---------|--------|--------------|
@@ -17,6 +18,34 @@ One Railway **project** with three services, all in the same environment:
 
 `segur-api` and `segur-jobs` deploy from the **same repository and the same commit**. They only
 differ in the config-as-code file each one points at.
+
+## Environments and branches
+
+| Railway environment | Git branch | Purpose | Seeded |
+|---------------------|-----------|---------|--------|
+| `production` (Railway's default) | `main` | Production. **Not set up yet** — nothing deploys here today. | no |
+| `dev` | `dev` | QA and demos. This is the one that is live. | yes |
+
+The environment name in Railway must be exactly `dev`, because `railway.json` keys its override
+block on that name (`environments.dev`). Rename the environment and the override silently stops
+applying.
+
+What actually differs between them:
+
+- **`SEED_ON_DEPLOY`** is `true` in `dev` and unset in `production`. It is a service variable, not
+  something `railway.json` can carry.
+- **`overlapSeconds` / `drainingSeconds`** are `0` in `dev` so deploys cut over immediately while
+  you iterate. `production` keeps the 20 s overlap and 15 s drain, because it is serving traffic
+  that should not be dropped mid-request.
+- Everything else — builder, pre-deploy, healthcheck, restart policy — is deliberately identical,
+  so QA exercises the same deploy path production will.
+
+`main` is currently well behind `dev`. Do not point a production service at it until it has been
+brought up to date; a deploy from `main` today would ship old code against a database that
+migrations have already moved forward.
+
+CI (`.github/workflows/ci.yml`) runs on pushes to both `main` and `dev`, and on every pull request
+regardless of target, so **Wait for CI** has a check suite to gate on in either environment.
 
 ## Files in this repo
 
@@ -47,8 +76,9 @@ receives traffic. The command is `bun run scripts/deploy-prepare.ts`, which runs
 
 ## Demo environment — the short path
 
-For a demo you do not need S3, a custom domain or the cron service. Five required variables, two
-of which you generate yourself and two of which Railway fills in for you.
+This is the `dev` environment, tracking the `dev` branch. For QA and demos you do not need S3, a
+custom domain or the cron service. Five required variables, two of which you generate yourself and
+two of which Railway fills in for you.
 
 ### Generate the secrets
 
@@ -141,11 +171,15 @@ a policy to actually approach its `fechaVencimiento`.
 ### 1. Create the project and the database
 
 1. **New Project → Deploy PostgreSQL**. This creates the `Postgres` service.
-2. In the same project, **New → GitHub Repo → `segur-back`**. Name the service `segur-api`.
+2. **Project Settings → Environments → New Environment**, named exactly `dev`. That name is what
+   `environments.dev` in `railway.json` keys on. Railway's built-in `production` environment is
+   the one that will eventually track `main`.
+3. In the same project, **New → GitHub Repo → `segur-back`**. Name the service `segur-api`.
 
 ### 2. Configure `segur-api`
 
-- **Settings → Source**: set the deployment branch to `main`.
+- **Settings → Source**: set the deployment branch to the one this environment tracks —
+  `main` in `production`, `dev` in `dev`. See [Environments and branches](#environments-and-branches).
 - **Settings → Build**: Builder is `Railpack`. The repo already forces it via `railway.json`,
   but set it in the UI too so the very first build uses the right builder.
 - **Settings → Config as Code**: leave the path as `railway.json` (the default root lookup).
@@ -172,7 +206,7 @@ type them literally.
 | `APP_URL` | the frontend url |
 | `API_URL` | `https://${{RAILWAY_PUBLIC_DOMAIN}}` |
 | `NODE_ENV` | `production` |
-| `SEED_ON_DEPLOY` | leave UNSET in production; `true` only on demo/staging |
+| `SEED_ON_DEPLOY` | leave UNSET in `production`; `true` only in `dev` |
 
 Do **not** set `PORT` — Railway injects it and `env.ts` reads it.
 
@@ -197,7 +231,7 @@ Uploaded policy and claim files would disappear. Pick one:
 
 1. **New → GitHub Repo → `segur-back`** again, in the same project. Name it `segur-jobs`.
 2. **Settings → Config as Code**: set the path to `railway.jobs.json`.
-3. **Settings → Source**: same branch as the API, `main`.
+3. **Settings → Source**: the same branch as the API in that environment.
 4. **Settings → Networking**: do **not** generate a domain. It is not a web service.
 5. The cron schedule (`0 13 * * *`, daily 13:00 UTC) comes from `railway.jobs.json`. Change it
    there, not in the UI, or the two disagree.
@@ -221,9 +255,6 @@ Railway supports is 5 minutes, and schedules are always UTC.
 
 - **Project Settings → Environments → Enable PR Environments**: every pull request gets a full
   throwaway copy of the project, destroyed when the PR is merged or closed.
-- **A `staging` environment**: create it, point its `segur-api` at the `dev-demi` branch, and it
-  picks up the `environments.staging` override in `railway.json` (sleeps when idle to save
-  cost). CI already runs on `dev-demi`.
 - **Settings → Deploy → Region**: pick the region closest to your users.
 
 ## The CI/CD flow, end to end

@@ -25,10 +25,10 @@
     "drainingSeconds": 15
   },
   "environments": {
-    "staging": {
+    "dev": {
       "deploy": {
-        "sleepApplication": true,
-        "numReplicas": 1
+        "overlapSeconds": 0,
+        "drainingSeconds": 0
       }
     }
   }
