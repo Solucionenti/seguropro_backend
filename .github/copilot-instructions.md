@@ -295,6 +295,7 @@ Each feature module lives in `src/modules/[feature]/` with 4 layers:
 ## Commands
 - `bun run dev` — start with watch mode
 - `bun run ts` — type-check without emitting (`tsc --noEmit`)
+- `bun run build` — `prisma generate`; this is the build step Railpack runs on Railway
 - `bun run build:bin` — compile to a single self-contained binary (`server_bin`)
 - `bun run lint` / `bun run lint:fix` — Biome check
 - `bun run format` — Biome format
@@ -305,3 +306,19 @@ Each feature module lives in `src/modules/[feature]/` with 4 layers:
 - `bun run db:reset` — reset database, re-apply migrations, and run seed
 - `bun run db:seed` — run seed script
 - `bun run db:studio` — open Prisma Studio
+- `bun run jobs:run` — run the scheduled jobs against `JOBS_API_URL` (what the Railway cron service runs)
+
+## Deployment — CI/CD on Railway
+
+Full runbook and dashboard checklist in `RAILWAY.md`. The rules that constrain code changes:
+
+- Builder is **Railpack**, pinned in `railpack.json`. There is NO Dockerfile and none is wanted.
+- `package.json` MUST keep a `build` script running `prisma generate`. `generated/` is gitignored, so the client has to be regenerated on every build or the image boots without one.
+- Migrations and seeding run through `scripts/deploy-prepare.ts`, wired as the Railway **pre-deploy command** in `railway.json`. NEVER migrate or seed from `src/index.ts` — with more than one replica they would race.
+- Seeding on deploy is opt-in via `SEED_ON_DEPLOY=true`, set per service. Production leaves it unset. The flag exists so the same `railway.json` serves demo and production without editing.
+- `prisma/seed.ts` MUST stay idempotent, because it runs on every deploy of a seeded service. Key each seeder on the row's real identity, NOT on `status`: a `MASTER_ADMIN` has `companyId = null` and Postgres treats nulls as distinct, so `@@unique([companyId, email])` does not stop a duplicate. Filtering by `status: ACTIVE` silently created a second `admin@segurpro.com` on the next run.
+- The seed does NOT resurrect a deactivated admin. Deactivating the platform admin is deliberate; the seed warns and leaves it.
+- Two services deploy from this repo at the same commit, each with its own config file: `railway.json` (api) and `railway.jobs.json` (cron). Keep both in sync when a build input changes.
+- `scripts/run-scheduled-jobs.ts` is the cron entrypoint. It MUST stay standalone (only `JOBS_API_URL`/`API_URL` and `JOB_SECRET`, never `@/config/env`) and MUST call `process.exit()`, or Railway skips the next run.
+- Deploys are gated on `.github/workflows/ci.yml` via Railway **Wait for CI**.
+- `STORAGE_DRIVER=local` is not viable on Railway without a volume; production uses `s3`.
