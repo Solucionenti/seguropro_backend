@@ -133,12 +133,15 @@ A summarised line with no `└` detail rows underneath it is not necessarily har
 a line the renderer did not expand. `railway config plan --json` prints the full desired state,
 which is the way to see what a bare `~ Update <service> networking` actually intends.
 
-Networking is worth that check specifically. `normalizeNetworking` in the SDK only ever computes
-`customDomains` and `tcpProxies`; `serviceDomains`, where a Railway-generated domain lives, is
-left untouched unless you pass `networking.serviceDomains` yourself, and a config with no
-`domains` at all compiles to no networking block rather than an empty one. Generated domains are
-documented as being outside the file. Losing one would take `API_URL` down with it and hand out a
-new hostname on regeneration, so confirm rather than assume.
+**A `~ Update <service> networking` line does not mean the generated domain is at risk** —
+settled by running it. This project applied that exact line with no `domains` and no `networking`
+anywhere in the file, and `seguroprobackend-production.up.railway.app` survived untouched.
+
+That matches how the SDK works: `normalizeNetworking` only ever computes `customDomains` and
+`tcpProxies`, so `serviceDomains` is left alone unless you pass `networking.serviceDomains`
+yourself, and Railway documents generated domains as living outside the file. Leave them out —
+declaring one pins a per-environment hostname into code for no benefit, and the hostname keeps
+whatever name it was created with anyway (the `dev` one still reads `-production`).
 
 After both fixes the plan should read roughly `1 to add` (`seguropro_jobs`, which genuinely does
 not exist yet), `1 to change` (`seguropro_backend`, adopting the build and deploy settings), and
