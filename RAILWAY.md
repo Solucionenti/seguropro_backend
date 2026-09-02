@@ -129,6 +129,17 @@ Two separate mistakes, both caught by `plan` rather than by an outage:
 `Postgres` was the one thing that behaved: it appears in neither list, because the name matched
 and it was adopted with no changes. That is what a correct line looks like.
 
+A summarised line with no `└` detail rows underneath it is not necessarily harmless — it is just
+a line the renderer did not expand. `railway config plan --json` prints the full desired state,
+which is the way to see what a bare `~ Update <service> networking` actually intends.
+
+Networking is worth that check specifically. `normalizeNetworking` in the SDK only ever computes
+`customDomains` and `tcpProxies`; `serviceDomains`, where a Railway-generated domain lives, is
+left untouched unless you pass `networking.serviceDomains` yourself, and a config with no
+`domains` at all compiles to no networking block rather than an empty one. Generated domains are
+documented as being outside the file. Losing one would take `API_URL` down with it and hand out a
+new hostname on regeneration, so confirm rather than assume.
+
 After both fixes the plan should read roughly `1 to add` (`seguropro_jobs`, which genuinely does
 not exist yet), `1 to change` (`seguropro_backend`, adopting the build and deploy settings), and
 **`0 to destroy`**. Treat any `destroy` line as a stop sign until you can name the resource and
